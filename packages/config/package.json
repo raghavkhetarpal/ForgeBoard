@@ -1,0 +1,23 @@
+{
+  "name": "@forgeboard/config",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "files": [
+    "eslint-preset.js",
+    "prettier-preset.js",
+    "tsconfig.base.json",
+    "tsconfig.node.json",
+    "tsconfig.nextjs.json",
+    "src"
+  ],
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}

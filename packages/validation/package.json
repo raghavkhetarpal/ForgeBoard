@@ -1,0 +1,19 @@
+{
+  "name": "@forgeboard/validation",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@forgeboard/config": "*",
+    "@forgeboard/types": "*",
+    "typescript": "^5.5.4"
+  }
+}
