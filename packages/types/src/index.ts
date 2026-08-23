@@ -71,3 +71,55 @@ export interface WorkspaceMembershipContext {
   userId: string;
   role: WorkspaceRole;
 }
+
+// Project Role Enum
+export type ProjectRole = 'ADMIN' | 'MEMBER' | 'VIEWER';
+
+export const PROJECT_ROLES: Record<ProjectRole, ProjectRole> = {
+  ADMIN: 'ADMIN',
+  MEMBER: 'MEMBER',
+  VIEWER: 'VIEWER',
+};
+
+export const PROJECT_ROLE_HIERARCHY: Record<ProjectRole, number> = {
+  VIEWER: 1,
+  MEMBER: 2,
+  ADMIN: 3,
+};
+
+// Project Status Enum
+export type ProjectStatus = 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'ARCHIVED';
+
+// Project DTO
+export interface ProjectDto {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description: string | null;
+  status: ProjectStatus;
+  deadline: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+// Project Member DTO
+export interface ProjectMemberDto {
+  id: string;
+  projectId: string;
+  workspaceId: string;
+  userId: string;
+  role: ProjectRole;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  user?: UserDto;
+  project?: ProjectDto;
+}
+
+// Project Membership Context
+export interface ProjectMembershipContext {
+  projectId: string;
+  workspaceId: string;
+  userId: string;
+  role: ProjectRole;
+  isImplicitAdmin: boolean;
+}

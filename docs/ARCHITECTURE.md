@@ -125,6 +125,8 @@ Non-negotiable practices:
 - Indexes on frequently filtered columns: `issues(project_id, status)`, `issues(assignee_id)`, `issues(priority)`, `activities(project_id, created_at)`.
 - Every workspace-scoped table carries `workspace_id` (denormalized where needed) so authorization queries can filter without extra joins — this is a deliberate, documented denormalization, not an accident.
 - No soft-delete-everywhere pattern by default; only `activities` is strictly append-only/immutable. Other entities use explicit `archived`/`status` fields as the PRD specifies (e.g. project `ARCHIVED` state), not a blanket `deleted_at` convention, to avoid ambiguous query semantics.
+- Workspace slug generation strategy: slugs are URL-friendly derivatives of the workspace name. On collision, append a short random alphanumeric suffix to prevent predictable collision attacks.
+- Sole-owner protection rule: The last remaining OWNER of a workspace (or project, where applicable) cannot be deleted, downgraded, or allowed to leave without transferring ownership first.
 
 ---
 
@@ -132,7 +134,7 @@ Non-negotiable practices:
 
 Redis is included because it solves four specific problems, not to pad a resume. Each use must remain traceable to one of these:
 
-1. **Session store** — server-side session state (session ID → user ID, expiry, metadata) backing the httpOnly session cookie described in §2. This is what makes sessions instantly revocable (delete the Redis key) versus a stateless JWT, which is the reason session-based auth was chosen over JWT for this project (see §9).
+1. **Session store** — server-side session state (session ID → user ID, expiry, metadata) backing the httpOnly session cookie described in §2. This is what makes sessions instantly revocable (delete the Redis key) versus a stateless JWT, which is the reason session-based auth was chosen over JWT for this project (see §9). Key patterns: `session:<id>` for actual session data, `user_sessions:<userId>` (a set of session IDs) for revoking all sessions of a user, and `pwd_reset:<token>` for password reset flows.
 2. **Socket.IO adapter / presence** — tracking which users are connected to which workspace/project rooms across potentially multiple API instances.
 3. **Rate limiting** — sliding-window counters for auth endpoints and the GitHub webhook endpoint, using `express-rate-limit` with a Redis store.
 4. **Ephemeral notification cache** — short-TTL cache for "unread notification count" so the dashboard doesn't hit Postgres on every page load.
@@ -209,6 +211,9 @@ requestId → auth (verify token) → rate limit (route-specific) → authorize 
 Every endpoint enforces, in this order: authentication, authorization, input validation, business logic, then a consistent error envelope on failure (`{ error: { code, message } }`, no stack traces or internal detail leaked in production responses).
 
 Authorization is never inferred from the frontend. A request to `PATCH /api/issues/:id` re-derives the requester's role in that issue's workspace from the DB on every call — there is no cached "the UI already checked this" trust boundary.
+- **ADMIN Permission Boundary**: A user with the ADMIN role can modify or remove normal members but cannot modify the role or membership of an OWNER or a fellow ADMIN. Only an OWNER can manage other administrators.
+- **Project Role vs Workspace Role**: A user's `ProjectRole` (ADMIN, MEMBER, VIEWER) applies specifically to a project and can be *higher* than their `WorkspaceRole`. This is an intentional escalation path: a project ADMIN can grant another workspace member a project role higher than that user's workspace role (e.g., making a workspace VIEWER a project ADMIN). Project roles are independent of workspace roles.
+- **Implicit Workspace Access:** A workspace `OWNER` automatically has implicit `ADMIN` access to all projects within the workspace (no explicit `ProjectMember` record required). Workspace `ADMIN`s **must** be explicitly added to a project (as a `ProjectMember`) to gain access. This allows sensitive projects to be scoped securely without all workspace `ADMIN`s automatically inheriting access.
 
 ---
 
@@ -257,7 +262,7 @@ Restated from the PRD, because the goal is depth over surface area: no AI/LLM fe
 ## 11. Open Decisions (fill in as Phase 1 proceeds)
 
 - [x] Auth strategy: server-side session (httpOnly cookie + Redis-backed session store) — see §2, §5, §9.
-- [x] Auth transport: signed httpOnly cookie (`forgeboard_session`) is the sole production transport. `Authorization: Bearer <sessionId>` is permitted strictly in `NODE_ENV !== 'production'` for automated testing convenience.
+- [x] Auth transport: signed httpOnly cookie (`forgeboard_session`) is the sole production transport. It must be configured with `httpOnly: true`, `secure: true` (in production), `sameSite: 'lax'`, and a robust signing secret. `Authorization: Bearer <sessionId>` is permitted strictly in `NODE_ENV !== 'production'` for automated testing convenience.
 - [ ] Webhook idempotency: Redis SETNX vs. `webhook_deliveries` table — pick one, document why here.
 - [ ] GitHub OAuth App vs. GitHub App (installation-based) — OAuth App assumed above; revisit if per-repo installation scoping becomes necessary.
 - [ ] Hosting target for the API (Render vs Railway vs Fly.io) — pick one once deploying in Phase 6.

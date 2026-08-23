@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './modules/auth/auth.routes';
 import workspacesRoutes from './modules/workspaces/workspaces.routes';
+import { workspaceProjectsRouter, projectRouter } from './modules/projects/projects.routes';
 import { AppError } from './infrastructure/errors';
 
 dotenv.config({ path: '../../.env' });
@@ -29,6 +30,8 @@ app.get('/health', (_req: Request, res: Response) => {
 // Mount modules
 app.use('/api/auth', authRoutes);
 app.use('/api/workspaces', workspacesRoutes);
+app.use('/api/workspaces/:workspaceId/projects', workspaceProjectsRouter);
+app.use('/api/projects', projectRouter);
 
 // Global error handler envelope per docs/ARCHITECTURE.md §8
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

@@ -14,26 +14,43 @@ enum WorkspaceRole {
   VIEWER
 }
 
+enum ProjectRole {
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+}
+
 model User {
-  id           String            @id @default(cuid())
-  email        String            @unique
-  passwordHash String            @map("password_hash")
-  name         String
-  avatarUrl    String?           @map("avatar_url")
-  createdAt    DateTime          @default(now()) @map("created_at")
-  updatedAt    DateTime          @updatedAt @map("updated_at")
-  memberships  WorkspaceMember[]
+  id             String            @id @default(cuid())
+  email          String            @unique
+  passwordHash   String            @map("password_hash")
+  name           String
+  avatarUrl      String?           @map("avatar_url")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  memberships    WorkspaceMember[]
+  projectMembers ProjectMember[]
 
   @@map("users")
 }
 
 model Workspace {
-  id        String            @id @default(cuid())
-  name      String
-  slug      String            @unique
-  createdAt DateTime          @default(now()) @map("created_at")
-  updatedAt DateTime          @updatedAt @map("updated_at")
-  members   WorkspaceMember[]
+  id             String            @id @default(cuid())
+  name           String
+  slug           String            @unique
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  members        WorkspaceMember[]
+  projects       Project[]
+  projectMembers ProjectMember[]
 
   @@map("workspaces")
 }
@@ -53,4 +70,41 @@ model WorkspaceMember {
   @@index([workspaceId])
   @@index([userId])
   @@map("workspace_members")
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  workspaceId String        @map("workspace_id")
+  name        String
+  description String?
+  status      ProjectStatus @default(PLANNING)
+  deadline    DateTime?
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members   ProjectMember[]
+
+  @@index([workspaceId])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id          String      @id @default(cuid())
+  projectId   String      @map("project_id")
+  workspaceId String      @map("workspace_id") // Denormalized for authz queries
+  userId      String      @map("user_id")
+  role        ProjectRole @default(MEMBER)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("project_members")
 }
