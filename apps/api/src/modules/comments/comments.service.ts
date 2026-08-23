@@ -2,19 +2,50 @@ import { commentsRepository } from './comments.repository';
 import { AppError } from '../../infrastructure/errors';
 import { CommentDto } from '@forgeboard/types';
 import prisma from '../../infrastructure/prisma';
+import { extractMentions } from './mentions.util';
+import { notificationsService } from '../notifications/notifications.service';
+import { issuesRepository } from '../issues/issues.repository';
 
 export class CommentsService {
+
+  private async processMentions(projectId: string, commentId: string, authorId: string, content: string) {
+    try {
+      const emails = extractMentions(content);
+      if (emails.length === 0) return;
+      
+      const users = await prisma.user.findMany({ where: { email: { in: emails } } });
+      
+      for (const user of users) {
+        if (user.id === authorId) continue; // no self-mentions
+        
+        const isMember = await issuesRepository.isProjectMember(projectId, user.id);
+        if (isMember) {
+          try {
+            await notificationsService.createNotification(user.id, 'MENTION', 'COMMENT', commentId, 'You were mentioned in a comment');
+          } catch (notificationError) {
+            console.error('Failed to create mention notification:', notificationError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to process mentions:', error);
+    }
+  }
+
   async createComment(projectId: string, issueId: string, authorId: string, content: string): Promise<CommentDto> {
     const issue = await prisma.issue.findUnique({ where: { id: issueId } });
     if (!issue || issue.projectId !== projectId) {
       throw new AppError('Issue not found or belongs to a different project', 400, 'BAD_REQUEST');
     }
     
-    return commentsRepository.create({
+    const comment = await commentsRepository.create({
       issueId,
       authorId,
       content,
     });
+    this.processMentions(projectId, comment.id, authorId, content); // fire-and-forget
+    return comment;
+
   }
 
   async listComments(projectId: string, issueId: string): Promise<CommentDto[]> {
@@ -41,7 +72,9 @@ export class CommentsService {
       throw new AppError('Issue not found or belongs to a different project', 400, 'BAD_REQUEST');
     }
 
-    return commentsRepository.update(commentId, { content, edited: true });
+    const updated = await commentsRepository.update(commentId, { content, edited: true });
+    this.processMentions(projectId, commentId, authorId, content); // fire-and-forget
+    return updated;
   }
 
   async deleteComment(projectId: string, issueId: string, commentId: string, userId: string, isProjectAdmin: boolean): Promise<void> {

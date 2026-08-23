@@ -46,6 +46,12 @@ describe('Comments Module Integration Tests', () => {
       data: { projectId, workspaceId, userId: nonAuthor.id, role: 'MEMBER' }
     });
 
+
+    await await prisma.user.create({
+      data: { email: `nonmember-${randomUUID()}@example.com`, name: 'Non Member', passwordHash: 'hash' }
+    });
+    // no project membership for nonMember
+
     const issue = await prisma.issue.create({
       data: { projectId, workspaceId, title: 'Comment Issue', creatorId: author.id }
     });
@@ -98,4 +104,46 @@ describe('Comments Module Integration Tests', () => {
     const getRes2 = await request(app).get(`/api/projects/${projectId}/issues/${issueId}/comments`).set('Authorization', `Bearer ${authorToken}`);
     expect(getRes2.body.comments.length).toBe(0);
   });
+
+  it('mentions flow', async () => {
+    // We need the emails of B and the nonMember
+    const userB = await prisma.user.findUnique({ where: { id: nonAuthorId } });
+    const nonMember = await prisma.user.findFirst({ where: { name: 'Non Member' } });
+
+    // A comments mentioning B, A, and nonMember
+     // Actually we know author's email starts with author-
+    
+    // We'll just fetch A to get their exact email
+    const userA = await prisma.user.findUnique({ where: { id: authorId } });
+    const realContent = `Hey @${userB!.email}, @${nonMember!.email} and @${userA!.email}`;
+
+    const createRes = await request(app).post(`/api/projects/${projectId}/issues/${issueId}/comments`).set('Authorization', `Bearer ${authorToken}`).send({ content: realContent });
+    expect(createRes.status).toBe(201);
+    
+    // Wait a brief moment since processMentions is fire-and-forget
+    await new Promise(r => setTimeout(r, 100));
+
+    // B should have a notification
+    const getB = await request(app).get('/api/notifications').set('Authorization', `Bearer ${nonAuthorToken}`);
+    expect(getB.status).toBe(200);
+    expect(getB.body.notifications.length).toBeGreaterThan(0);
+    expect(getB.body.notifications[0].type).toBe('MENTION');
+    
+    // OUTPUT FOR VERIFICATION
+    console.log('--- EXTRACTED MENTIONS TEST STRING ---');
+    console.log(realContent);
+    console.log('--- GENERATED NOTIFICATION FOR B ---');
+    console.log(JSON.stringify(getB.body.notifications[0], null, 2));
+    console.log('------------------------------------');
+
+    // A should not have a self notification
+    const getA = await request(app).get('/api/notifications').set('Authorization', `Bearer ${authorToken}`);
+    expect(getA.body.notifications.length).toBe(0);
+
+    // nonMember should not have a notification
+    const nonMemberToken = (await createSession(nonMember!.id, nonMember!.email)).sessionId;
+    const getNon = await request(app).get('/api/notifications').set('Authorization', `Bearer ${nonMemberToken}`);
+    expect(getNon.body.notifications.length).toBe(0);
+  });
+
 });
