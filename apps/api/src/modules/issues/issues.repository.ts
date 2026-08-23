@@ -2,25 +2,43 @@ import prisma from '../../infrastructure/prisma';
 import { Prisma } from '@prisma/client';
 import { IssueDto } from '@forgeboard/types';
 
+
+type IssueWithRelations = Prisma.IssueGetPayload<{
+  include: {
+    creator: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } };
+    assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } };
+    labels: { include: { label: true } };
+  }
+}>;
+
+function mapIssue(issue: IssueWithRelations): IssueDto {
+  const { labels, assignee, ...rest } = issue;
+  return {
+    ...rest,
+    assignee: assignee ?? undefined,
+    labels: labels.map(il => il.label)
+  };
+}
+
 export class IssuesRepository {
   async create(data: Prisma.IssueUncheckedCreateInput): Promise<IssueDto> {
-    return prisma.issue.create({
+    const issue = await prisma.issue.create({
       data,
       include: {
         creator: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
-        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } }
+        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } }, labels: { include: { label: true } }
       }
-    }) as Promise<IssueDto>;
+    }); return mapIssue(issue);
   }
 
   async findById(id: string): Promise<IssueDto | null> {
-    return prisma.issue.findUnique({
+    const issue = await prisma.issue.findUnique({
       where: { id },
       include: {
         creator: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
-        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } }
+        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } }, labels: { include: { label: true } }
       }
-    }) as Promise<IssueDto | null>;
+    }); return issue ? mapIssue(issue) : null;
   }
 
   async findMany(projectId: string, filters: { status?: string, priority?: string, assigneeId?: string }): Promise<IssueDto[]> {
@@ -30,7 +48,7 @@ export class IssuesRepository {
     if (filters.priority) where.priority = filters.priority as Prisma.EnumIssuePriorityFilter;
     if (filters.assigneeId) where.assigneeId = filters.assigneeId;
 
-    return prisma.issue.findMany({
+    const issues = await prisma.issue.findMany({
       where,
       orderBy: [
         { status: 'asc' },
@@ -38,20 +56,20 @@ export class IssuesRepository {
       ],
       include: {
         creator: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
-        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } }
+        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } }, labels: { include: { label: true } }
       }
-    }) as Promise<IssueDto[]>;
+    }); return issues.map(mapIssue);
   }
 
   async update(id: string, data: Prisma.IssueUncheckedUpdateInput): Promise<IssueDto> {
-    return prisma.issue.update({
+    const issue = await prisma.issue.update({
       where: { id },
       data,
       include: {
         creator: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
-        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } }
+        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } }, labels: { include: { label: true } }
       }
-    }) as Promise<IssueDto>;
+    }); return mapIssue(issue);
   }
 
   async delete(id: string): Promise<void> {

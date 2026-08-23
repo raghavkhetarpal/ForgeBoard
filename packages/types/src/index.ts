@@ -147,4 +147,26 @@ export interface IssueDto {
   updatedAt: Date | string;
   creator?: UserDto;
   assignee?: UserDto;
+  labels?: LabelDto[];
+  comments?: CommentDto[];
+}
+
+// Label DTO
+export interface LabelDto {
+  id: string;
+  projectId: string;
+  name: string;
+  color: string;
+  createdAt: Date | string;
+}
+
+export interface CommentDto {
+  id: string;
+  issueId: string;
+  authorId: string;
+  content: string;
+  edited: boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  author?: UserDto;
 }
