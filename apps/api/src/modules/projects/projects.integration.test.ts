@@ -7,11 +7,9 @@ import { randomUUID } from 'crypto';
 
 describe('Projects Module Integration Tests', () => {
   let ownerToken: string;
-  let ownerId: string;
   let memberToken: string;
   let memberId: string;
   let nonMemberToken: string;
-  let nonMemberId: string;
   let workspaceId: string;
   let projectId: string;
 
@@ -26,7 +24,6 @@ describe('Projects Module Integration Tests', () => {
     const owner = await prisma.user.create({
       data: { email: 'owner@example.com', name: 'Owner', passwordHash: 'hash' }
     });
-    ownerId = owner.id;
     ownerToken = (await createSession(owner.id, owner.email)).sessionId;
 
     const member = await prisma.user.create({
@@ -38,7 +35,6 @@ describe('Projects Module Integration Tests', () => {
     const nonMember = await prisma.user.create({
       data: { email: 'non@example.com', name: 'Non', passwordHash: 'hash' }
     });
-    nonMemberId = nonMember.id;
     nonMemberToken = (await createSession(nonMember.id, nonMember.email)).sessionId;
   });
 

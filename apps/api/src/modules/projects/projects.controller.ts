@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { projectsService } from './projects.service';
-import { createProjectSchema, updateProjectSchema, addProjectMemberSchema, updateProjectMemberSchema } from './projects.validation';
-import { AppError } from '../../infrastructure/errors';
+import { createProjectSchema, updateProjectSchema, addProjectMemberSchema } from './projects.validation';
 
 export class ProjectsController {
   async create(req: Request, res: Response, next: NextFunction) {

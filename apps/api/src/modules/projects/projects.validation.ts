@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { ProjectStatus, ProjectRole } from '@forgeboard/types';
 
 export const createProjectSchema = z.object({
   name: z.string().min(1).max(100),

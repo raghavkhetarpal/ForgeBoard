@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { requireWorkspaceRole, requireProjectRole } from './rbac.middleware';
 import prisma from '../infrastructure/prisma';
-import { WorkspaceRole, ProjectRole } from '@forgeboard/types';
+import { WorkspaceRole } from '@forgeboard/types';
 
 describe('RBAC Middleware', () => {
   let req: any;
