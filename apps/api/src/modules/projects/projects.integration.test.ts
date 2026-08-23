@@ -7,43 +7,43 @@ import { randomUUID } from 'crypto';
 
 describe('Projects Module Integration Tests', () => {
   let ownerToken: string;
+  let ownerId: string;
   let memberToken: string;
   let memberId: string;
   let nonMemberToken: string;
+  let nonMemberId: string;
   let workspaceId: string;
   let projectId: string;
 
   beforeAll(async () => {
     // Clean up
-    await prisma.workspaceMember.deleteMany();
-    await prisma.project.deleteMany();
-    await prisma.workspace.deleteMany();
-    await prisma.user.deleteMany();
+    
 
     // Create 3 users
     const owner = await prisma.user.create({
-      data: { email: 'owner@example.com', name: 'Owner', passwordHash: 'hash' }
+      data: { email: `owner-${randomUUID()}@example.com`, name: 'Owner', passwordHash: 'hash' }
     });
+    ownerId = owner.id;
     ownerToken = (await createSession(owner.id, owner.email)).sessionId;
 
     const member = await prisma.user.create({
-      data: { email: 'member@example.com', name: 'Member', passwordHash: 'hash' }
+      data: { email: `member-${randomUUID()}@example.com`, name: 'Member', passwordHash: 'hash' }
     });
     memberId = member.id;
     memberToken = (await createSession(member.id, member.email)).sessionId;
 
     const nonMember = await prisma.user.create({
-      data: { email: 'non@example.com', name: 'Non', passwordHash: 'hash' }
+      data: { email: `non-${randomUUID()}@example.com`, name: 'Non', passwordHash: 'hash' }
     });
+    nonMemberId = nonMember.id;
     nonMemberToken = (await createSession(nonMember.id, nonMember.email)).sessionId;
   });
 
   afterAll(async () => {
-    await prisma.projectMember.deleteMany();
-    await prisma.project.deleteMany();
-    await prisma.workspaceMember.deleteMany();
-    await prisma.workspace.deleteMany();
-    await prisma.user.deleteMany();
+    
+    if (workspaceId) await prisma.workspace.delete({ where: { id: workspaceId } }).catch(() => {});
+    await prisma.user.deleteMany({ where: { id: { in: [ownerId, memberId, nonMemberId].filter(Boolean) } } });
+
   });
 
   it('create workspace', async () => {

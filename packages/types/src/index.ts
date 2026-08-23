@@ -123,3 +123,27 @@ export interface ProjectMembershipContext {
   role: ProjectRole;
   isImplicitAdmin: boolean;
 }
+
+// Issue Status Enum
+export type IssueStatus = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE' | 'CANCELLED';
+
+// Issue Priority Enum
+export type IssuePriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+// Issue DTO
+export interface IssueDto {
+  id: string;
+  workspaceId: string;
+  projectId: string;
+  creatorId: string;
+  assigneeId: string | null;
+  title: string;
+  description: string | null;
+  status: IssueStatus;
+  priority: IssuePriority;
+  dueDate: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  creator?: UserDto;
+  assignee?: UserDto;
+}
