@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './modules/auth/auth.routes';
 import workspacesRoutes from './modules/workspaces/workspaces.routes';
+import { AppError } from './infrastructure/errors';
 
 dotenv.config({ path: '../../.env' });
 
@@ -30,20 +31,30 @@ app.use('/api/auth', authRoutes);
 app.use('/api/workspaces', workspacesRoutes);
 
 // Global error handler envelope per docs/ARCHITECTURE.md §8
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('Unhandled API Error:', err);
-  const statusCode = err.statusCode || 500;
-  const code = err.code || 'INTERNAL_SERVER_ERROR';
-  const message =
-    process.env.NODE_ENV === 'production' && statusCode === 500
-      ? 'An internal error occurred.'
-      : err.message || 'Internal server error';
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({
+      error: {
+        code: err.code,
+        message: err.message,
+        ...(err.details ? { details: err.details } : {}),
+      },
+    });
+    return;
+  }
 
-  res.status(statusCode).json({
+  console.error('Unhandled API Error:', err);
+  const message =
+    process.env.NODE_ENV === 'production'
+      ? 'An internal error occurred.'
+      : err instanceof Error
+        ? err.message
+        : 'Internal server error';
+
+  res.status(500).json({
     error: {
-      code,
+      code: 'INTERNAL_SERVER_ERROR',
       message,
-      ...(err.details ? { details: err.details } : {}),
     },
   });
 });

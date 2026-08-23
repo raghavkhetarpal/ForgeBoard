@@ -11,6 +11,7 @@ import {
 } from './auth.types';
 import { hashPassword, verifyPassword } from '../../infrastructure/password';
 import { sendPasswordResetEmail } from '../../infrastructure/mailer';
+import { AppError } from '../../infrastructure/errors';
 import { UserDto } from '@forgeboard/types';
 
 export class AuthService {
@@ -19,10 +20,7 @@ export class AuthService {
   async register(input: RegisterInput): Promise<AuthResponse> {
     const existing = await this.repo.findUserByEmail(input.email);
     if (existing) {
-      const error: any = new Error('A user with this email already exists.');
-      error.statusCode = 409;
-      error.code = 'CONFLICT';
-      throw error;
+      throw new AppError('A user with this email already exists.', 409, 'CONFLICT');
     }
 
     const passwordHash = await hashPassword(input.password);
@@ -46,18 +44,12 @@ export class AuthService {
   async login(input: LoginInput): Promise<AuthResponse> {
     const user = await this.repo.findUserByEmail(input.email);
     if (!user) {
-      const error: any = new Error('Invalid email or password.');
-      error.statusCode = 401;
-      error.code = 'INVALID_CREDENTIALS';
-      throw error;
+      throw new AppError('Invalid email or password.', 401, 'INVALID_CREDENTIALS');
     }
 
     const isValid = await verifyPassword(input.password, user.passwordHash);
     if (!isValid) {
-      const error: any = new Error('Invalid email or password.');
-      error.statusCode = 401;
-      error.code = 'INVALID_CREDENTIALS';
-      throw error;
+      throw new AppError('Invalid email or password.', 401, 'INVALID_CREDENTIALS');
     }
 
     const session = await this.repo.createSession(user.id, user.email);
@@ -89,18 +81,12 @@ export class AuthService {
   async refreshSession(sessionId: string): Promise<SessionResponse> {
     const session = await this.repo.getSession(sessionId);
     if (!session) {
-      const error: any = new Error('Session is invalid or expired.');
-      error.statusCode = 401;
-      error.code = 'UNAUTHORIZED';
-      throw error;
+      throw new AppError('Session is invalid or expired.', 401, 'UNAUTHORIZED');
     }
 
     const user = await this.repo.findUserById(session.userId);
     if (!user) {
-      const error: any = new Error('User no longer exists.');
-      error.statusCode = 401;
-      error.code = 'UNAUTHORIZED';
-      throw error;
+      throw new AppError('User no longer exists.', 401, 'UNAUTHORIZED');
     }
 
     await this.repo.touchSession(sessionId);
@@ -118,16 +104,12 @@ export class AuthService {
       await this.repo.storePasswordResetToken(resetToken, user.id);
       await sendPasswordResetEmail(user.email, resetToken);
     }
-    // Always returns gracefully without leaking email existence
   }
 
   async confirmPasswordReset(input: ConfirmPasswordResetInput): Promise<void> {
     const userId = await this.repo.getPasswordResetTokenUserId(input.token);
     if (!userId) {
-      const error: any = new Error('Password reset token is invalid or has expired.');
-      error.statusCode = 400;
-      error.code = 'INVALID_TOKEN';
-      throw error;
+      throw new AppError('Password reset token is invalid or has expired.', 400, 'INVALID_TOKEN');
     }
 
     const passwordHash = await hashPassword(input.newPassword);
@@ -141,10 +123,7 @@ export class AuthService {
   async getProfile(userId: string): Promise<UserDto> {
     const user = await this.repo.findUserById(userId);
     if (!user) {
-      const error: any = new Error('User not found.');
-      error.statusCode = 404;
-      error.code = 'NOT_FOUND';
-      throw error;
+      throw new AppError('User not found.', 404, 'NOT_FOUND');
     }
     return user;
   }

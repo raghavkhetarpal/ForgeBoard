@@ -6,6 +6,7 @@ import {
 } from './workspaces.types';
 import { WorkspaceRole, ROLE_HIERARCHY, WorkspaceDto, WorkspaceMemberDto } from '@forgeboard/types';
 import { sendWorkspaceInviteEmail } from '../../infrastructure/mailer';
+import { AppError } from '../../infrastructure/errors';
 
 export class WorkspacesService {
   constructor(private repo: WorkspacesRepository = workspacesRepository) {}
@@ -28,10 +29,7 @@ export class WorkspacesService {
 
     const existing = await this.repo.findWorkspaceBySlug(slug);
     if (existing) {
-      const error: any = new Error(`Workspace with slug "${slug}" already exists.`);
-      error.statusCode = 409;
-      error.code = 'CONFLICT';
-      throw error;
+      throw new AppError(`Workspace with slug "${slug}" already exists.`, 409, 'CONFLICT');
     }
 
     const { workspace, member } = await this.repo.createWorkspaceWithOwner({
@@ -67,18 +65,12 @@ export class WorkspacesService {
   async getWorkspace(workspaceId: string, userId: string) {
     const membership = await this.repo.findMember(workspaceId, userId);
     if (!membership) {
-      const error: any = new Error('You are not a member of this workspace.');
-      error.statusCode = 403;
-      error.code = 'FORBIDDEN';
-      throw error;
+      throw new AppError('You are not a member of this workspace.', 403, 'FORBIDDEN');
     }
 
     const workspace = await this.repo.findWorkspaceById(workspaceId);
     if (!workspace) {
-      const error: any = new Error('Workspace not found.');
-      error.statusCode = 404;
-      error.code = 'NOT_FOUND';
-      throw error;
+      throw new AppError('Workspace not found.', 404, 'NOT_FOUND');
     }
 
     return {
@@ -110,26 +102,17 @@ export class WorkspacesService {
     // Re-verify requester role server-side directly from DB
     const requesterMembership = await this.repo.findMember(workspaceId, requesterUserId);
     if (!requesterMembership || ROLE_HIERARCHY[requesterMembership.role as WorkspaceRole] < ROLE_HIERARCHY.ADMIN) {
-      const error: any = new Error('Only Workspace Owners and Admins can invite new members.');
-      error.statusCode = 403;
-      error.code = 'FORBIDDEN';
-      throw error;
+      throw new AppError('Only Workspace Owners and Admins can invite new members.', 403, 'FORBIDDEN');
     }
 
     const roleToAssign = input.role || 'MEMBER';
     if (roleToAssign === 'OWNER' && requesterMembership.role !== 'OWNER') {
-      const error: any = new Error('Only the workspace owner can assign the OWNER role.');
-      error.statusCode = 403;
-      error.code = 'FORBIDDEN';
-      throw error;
+      throw new AppError('Only the workspace owner can assign the OWNER role.', 403, 'FORBIDDEN');
     }
 
     const workspace = await this.repo.findWorkspaceById(workspaceId);
     if (!workspace) {
-      const error: any = new Error('Workspace not found.');
-      error.statusCode = 404;
-      error.code = 'NOT_FOUND';
-      throw error;
+      throw new AppError('Workspace not found.', 404, 'NOT_FOUND');
     }
 
     const targetUser = await this.repo.findUserByEmail(input.email);
@@ -147,10 +130,7 @@ export class WorkspacesService {
     // Check if target user is already a member
     const existingMember = await this.repo.findMember(workspaceId, targetUser.id);
     if (existingMember) {
-      const error: any = new Error('User is already a member of this workspace.');
-      error.statusCode = 409;
-      error.code = 'CONFLICT';
-      throw error;
+      throw new AppError('User is already a member of this workspace.', 409, 'CONFLICT');
     }
 
     const member = await this.repo.addMember(workspaceId, targetUser.id, roleToAssign);
@@ -178,18 +158,12 @@ export class WorkspacesService {
     // Re-verify requester role server-side directly from DB
     const requesterMembership = await this.repo.findMember(workspaceId, requesterUserId);
     if (!requesterMembership || ROLE_HIERARCHY[requesterMembership.role as WorkspaceRole] < ROLE_HIERARCHY.ADMIN) {
-      const error: any = new Error('Only Workspace Owners and Admins can modify member roles.');
-      error.statusCode = 403;
-      error.code = 'FORBIDDEN';
-      throw error;
+      throw new AppError('Only Workspace Owners and Admins can modify member roles.', 403, 'FORBIDDEN');
     }
 
     const targetMember = await this.repo.findMemberById(memberId);
     if (!targetMember || targetMember.workspaceId !== workspaceId) {
-      const error: any = new Error('Member not found in this workspace.');
-      error.statusCode = 404;
-      error.code = 'NOT_FOUND';
-      throw error;
+      throw new AppError('Member not found in this workspace.', 404, 'NOT_FOUND');
     }
 
     const requesterRole = requesterMembership.role as WorkspaceRole;
@@ -198,16 +172,10 @@ export class WorkspacesService {
     // Rule: Admins cannot modify role of an Owner or fellow Admin, and cannot promote to Owner
     if (requesterRole === 'ADMIN') {
       if (targetRole === 'OWNER' || targetRole === 'ADMIN') {
-        const error: any = new Error('Admins cannot modify roles of other Admins or Owners.');
-        error.statusCode = 403;
-        error.code = 'FORBIDDEN';
-        throw error;
+        throw new AppError('Admins cannot modify roles of other Admins or Owners.', 403, 'FORBIDDEN');
       }
       if (input.role === 'OWNER') {
-        const error: any = new Error('Admins cannot promote members to Owner.');
-        error.statusCode = 403;
-        error.code = 'FORBIDDEN';
-        throw error;
+        throw new AppError('Admins cannot promote members to Owner.', 403, 'FORBIDDEN');
       }
     }
 
@@ -215,10 +183,7 @@ export class WorkspacesService {
     if (targetRole === 'OWNER' && input.role !== 'OWNER') {
       const ownerCount = await this.repo.countWorkspaceOwners(workspaceId);
       if (ownerCount <= 1) {
-        const error: any = new Error('Cannot downgrade the only workspace owner.');
-        error.statusCode = 400;
-        error.code = 'BAD_REQUEST';
-        throw error;
+        throw new AppError('Cannot downgrade the only workspace owner.', 400, 'BAD_REQUEST');
       }
     }
 
@@ -244,32 +209,20 @@ export class WorkspacesService {
     // Re-verify requester role server-side directly from DB
     const requesterMembership = await this.repo.findMember(workspaceId, requesterUserId);
     if (!requesterMembership || ROLE_HIERARCHY[requesterMembership.role as WorkspaceRole] < ROLE_HIERARCHY.ADMIN) {
-      const error: any = new Error('Only Workspace Owners and Admins can remove members.');
-      error.statusCode = 403;
-      error.code = 'FORBIDDEN';
-      throw error;
+      throw new AppError('Only Workspace Owners and Admins can remove members.', 403, 'FORBIDDEN');
     }
 
     const targetMember = await this.repo.findMemberById(memberId);
     if (!targetMember || targetMember.workspaceId !== workspaceId) {
-      const error: any = new Error('Member not found in this workspace.');
-      error.statusCode = 404;
-      error.code = 'NOT_FOUND';
-      throw error;
+      throw new AppError('Member not found in this workspace.', 404, 'NOT_FOUND');
     }
 
     if (targetMember.role === 'OWNER') {
-      const error: any = new Error('Workspace Owner cannot be removed from workspace.');
-      error.statusCode = 400;
-      error.code = 'BAD_REQUEST';
-      throw error;
+      throw new AppError('Workspace Owner cannot be removed from workspace.', 400, 'BAD_REQUEST');
     }
 
     if (requesterMembership.role === 'ADMIN' && targetMember.role === 'ADMIN') {
-      const error: any = new Error('Admins cannot remove other Admins from the workspace.');
-      error.statusCode = 403;
-      error.code = 'FORBIDDEN';
-      throw error;
+      throw new AppError('Admins cannot remove other Admins from the workspace.', 403, 'FORBIDDEN');
     }
 
     await this.repo.deleteMember(memberId);
@@ -283,19 +236,13 @@ export class WorkspacesService {
   async leaveWorkspace(workspaceId: string, userId: string) {
     const membership = await this.repo.findMember(workspaceId, userId);
     if (!membership) {
-      const error: any = new Error('You are not a member of this workspace.');
-      error.statusCode = 404;
-      error.code = 'NOT_FOUND';
-      throw error;
+      throw new AppError('You are not a member of this workspace.', 404, 'NOT_FOUND');
     }
 
     if (membership.role === 'OWNER') {
       const ownerCount = await this.repo.countWorkspaceOwners(workspaceId);
       if (ownerCount <= 1) {
-        const error: any = new Error('You are the sole Owner of this workspace. Transfer ownership before leaving.');
-        error.statusCode = 400;
-        error.code = 'BAD_REQUEST';
-        throw error;
+        throw new AppError('You are the sole Owner of this workspace. Transfer ownership before leaving.', 400, 'BAD_REQUEST');
       }
     }
 

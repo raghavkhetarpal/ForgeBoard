@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { WorkspacesService } from './workspaces.service';
 import { WorkspacesRepository } from './workspaces.repository';

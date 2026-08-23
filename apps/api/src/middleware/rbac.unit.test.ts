@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { requireWorkspaceRole } from './rbac.middleware';
 import prisma from '../infrastructure/prisma';

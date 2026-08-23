@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { ZodError } from 'zod';
 import { AuthService, authService } from './auth.service';
 import {
   registerSchema,
@@ -8,6 +9,7 @@ import {
   updateProfileSchema,
 } from './auth.validation';
 import { SESSION_COOKIE_NAME, DEFAULT_SESSION_TTL_SECONDS } from '../../infrastructure/session';
+import { AppError } from '../../infrastructure/errors';
 
 export class AuthController {
   constructor(private service: AuthService = authService) {}
@@ -49,12 +51,12 @@ export class AuthController {
             : {}),
         },
       });
-    } catch (error: any) {
-      if (error.name === 'ZodError') {
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
         res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
         return;
       }
-      if (error.statusCode) {
+      if (error instanceof AppError) {
         res.status(error.statusCode).json({ error: { code: error.code, message: error.message } });
         return;
       }
@@ -79,12 +81,12 @@ export class AuthController {
             : {}),
         },
       });
-    } catch (error: any) {
-      if (error.name === 'ZodError') {
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
         res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
         return;
       }
-      if (error.statusCode) {
+      if (error instanceof AppError) {
         res.status(error.statusCode).json({ error: { code: error.code, message: error.message } });
         return;
       }
@@ -121,8 +123,8 @@ export class AuthController {
           },
         },
       });
-    } catch (error: any) {
-      if (error.statusCode) {
+    } catch (error: unknown) {
+      if (error instanceof AppError) {
         res.status(error.statusCode).json({ error: { code: error.code, message: error.message } });
         return;
       }
@@ -145,8 +147,8 @@ export class AuthController {
           message: 'If an account exists with this email, a password reset link has been dispatched.',
         },
       });
-    } catch (error: any) {
-      if (error.name === 'ZodError') {
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
         res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
         return;
       }
@@ -171,12 +173,12 @@ export class AuthController {
           message: 'Password has been updated. Please log in with your new password.',
         },
       });
-    } catch (error: any) {
-      if (error.name === 'ZodError') {
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
         res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
         return;
       }
-      if (error.statusCode) {
+      if (error instanceof AppError) {
         res.status(error.statusCode).json({ error: { code: error.code, message: error.message } });
         return;
       }
@@ -192,8 +194,8 @@ export class AuthController {
       }
       const user = await this.service.getProfile(req.user.id);
       res.status(200).json({ data: { user } });
-    } catch (error: any) {
-      if (error.statusCode) {
+    } catch (error: unknown) {
+      if (error instanceof AppError) {
         res.status(error.statusCode).json({ error: { code: error.code, message: error.message } });
         return;
       }
@@ -210,12 +212,12 @@ export class AuthController {
       const parsed = updateProfileSchema.parse(req.body);
       const user = await this.service.updateProfile(req.user.id, parsed);
       res.status(200).json({ data: { user } });
-    } catch (error: any) {
-      if (error.name === 'ZodError') {
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
         res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
         return;
       }
-      if (error.statusCode) {
+      if (error instanceof AppError) {
         res.status(error.statusCode).json({ error: { code: error.code, message: error.message } });
         return;
       }

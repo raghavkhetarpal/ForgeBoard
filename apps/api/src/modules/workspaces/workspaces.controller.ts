@@ -1,10 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
+import { ZodError } from 'zod';
 import { WorkspacesService, workspacesService } from './workspaces.service';
 import {
   createWorkspaceSchema,
   inviteMemberSchema,
   updateMemberRoleSchema,
 } from './workspaces.validation';
+import { AppError } from '../../infrastructure/errors';
 
 export class WorkspacesController {
   constructor(private service: WorkspacesService = workspacesService) {}
@@ -20,12 +22,12 @@ export class WorkspacesController {
       const result = await this.service.createWorkspace(req.user.id, parsed);
 
       res.status(201).json({ data: result });
-    } catch (error: any) {
-      if (error.name === 'ZodError') {
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
         res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
         return;
       }
-      if (error.statusCode) {
+      if (error instanceof AppError) {
         res.status(error.statusCode).json({ error: { code: error.code, message: error.message } });
         return;
       }
@@ -58,8 +60,8 @@ export class WorkspacesController {
       const result = await this.service.getWorkspace(workspaceId, req.user.id);
 
       res.status(200).json({ data: result });
-    } catch (error: any) {
-      if (error.statusCode) {
+    } catch (error: unknown) {
+      if (error instanceof AppError) {
         res.status(error.statusCode).json({ error: { code: error.code, message: error.message } });
         return;
       }
@@ -84,12 +86,12 @@ export class WorkspacesController {
       );
 
       res.status(201).json({ data: result });
-    } catch (error: any) {
-      if (error.name === 'ZodError') {
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
         res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
         return;
       }
-      if (error.statusCode) {
+      if (error instanceof AppError) {
         res.status(error.statusCode).json({ error: { code: error.code, message: error.message } });
         return;
       }
@@ -116,12 +118,12 @@ export class WorkspacesController {
       );
 
       res.status(200).json({ data: result });
-    } catch (error: any) {
-      if (error.name === 'ZodError') {
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
         res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
         return;
       }
-      if (error.statusCode) {
+      if (error instanceof AppError) {
         res.status(error.statusCode).json({ error: { code: error.code, message: error.message } });
         return;
       }
@@ -141,8 +143,8 @@ export class WorkspacesController {
 
       const result = await this.service.removeMember(workspaceId, memberId, req.user.id);
       res.status(200).json({ data: result });
-    } catch (error: any) {
-      if (error.statusCode) {
+    } catch (error: unknown) {
+      if (error instanceof AppError) {
         res.status(error.statusCode).json({ error: { code: error.code, message: error.message } });
         return;
       }
@@ -161,8 +163,8 @@ export class WorkspacesController {
       const result = await this.service.leaveWorkspace(workspaceId, req.user.id);
 
       res.status(200).json({ data: result });
-    } catch (error: any) {
-      if (error.statusCode) {
+    } catch (error: unknown) {
+      if (error instanceof AppError) {
         res.status(error.statusCode).json({ error: { code: error.code, message: error.message } });
         return;
       }
