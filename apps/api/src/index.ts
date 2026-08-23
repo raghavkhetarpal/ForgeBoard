@@ -28,6 +28,7 @@ app.get('/health', (_req: Request, res: Response) => {
 });
 
 import issuesRouter from './modules/issues/issues.routes';
+import notificationsRouter from './modules/notifications/notifications.routes';
 import labelsRoutes from './modules/labels/labels.routes';
 
 // Mount modules
@@ -37,6 +38,7 @@ app.use('/api/workspaces/:workspaceId/projects', workspaceProjectsRouter);
 app.use('/api/projects', projectRouter);
 app.use('/api/projects/:projectId/issues', issuesRouter);
 app.use('/api/projects/:projectId/labels', labelsRoutes);
+app.use('/api/notifications', notificationsRouter);
 
 // Global error handler envelope per docs/ARCHITECTURE.md §8
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

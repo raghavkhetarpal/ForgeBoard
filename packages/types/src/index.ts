@@ -170,3 +170,16 @@ export interface CommentDto {
   updatedAt: Date | string;
   author?: UserDto;
 }
+
+export type NotificationType = 'MENTION' | 'ASSIGNMENT' | 'COMMENT';
+
+export interface NotificationDto {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  sourceType: string;
+  sourceId: string;
+  message: string;
+  read: boolean;
+  createdAt: Date | string;
+}
