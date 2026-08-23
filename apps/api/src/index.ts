@@ -6,10 +6,14 @@ import authRoutes from './modules/auth/auth.routes';
 import workspacesRoutes from './modules/workspaces/workspaces.routes';
 import { workspaceProjectsRouter, projectRouter } from './modules/projects/projects.routes';
 import { AppError } from './infrastructure/errors';
+import http from 'http';
+import { initSocketServer } from './infrastructure/socket';
 
 dotenv.config({ path: '../../.env' });
 
 const app: Express = express();
+export const httpServer = http.createServer(app);
+initSocketServer(httpServer);
 const port = process.env.PORT || 4000;
 const sessionSecret = process.env.SESSION_SECRET || process.env.JWT_SECRET || 'forgeboard-dev-session-secret';
 
@@ -70,7 +74,7 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(port, () => {
+  httpServer.listen(port, () => {
     console.log(`ForgeBoard API running on port ${port}`);
   });
 }
