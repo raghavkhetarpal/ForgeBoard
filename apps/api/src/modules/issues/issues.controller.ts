@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { issuesService } from './issues.service';
-import { createIssueSchema, updateIssueSchema, listIssuesSchema } from './issues.validation';
+import { createIssueSchema, updateIssueSchema, listIssuesSchema, moveIssueSchema } from './issues.validation';
 import { AppError } from '../../infrastructure/errors';
 
 export class IssuesController {
@@ -55,6 +55,17 @@ export class IssuesController {
       const { projectId, issueId } = req.params;
       await issuesService.deleteIssue(projectId, issueId);
       res.status(200).json({ success: true, message: 'Issue deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  moveIssue = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { projectId, issueId } = req.params;
+      const { status, position } = moveIssueSchema.parse(req.body);
+      const issue = await issuesService.moveIssue(projectId, issueId, status, position);
+      res.status(200).json({ issue });
     } catch (error) {
       next(error);
     }

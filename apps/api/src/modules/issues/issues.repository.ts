@@ -32,7 +32,10 @@ export class IssuesRepository {
 
     return prisma.issue.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [
+        { status: 'asc' },
+        { position: 'asc' },
+      ],
       include: {
         creator: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
         assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } }
@@ -74,6 +77,23 @@ export class IssuesRepository {
     
     return wsMember?.role === 'OWNER';
   }
+  async findIssuesByStatusOrdered(projectId: string, status: string): Promise<{ id: string, position: number }[]> {
+    return prisma.issue.findMany({
+      where: { projectId, status: status as Prisma.EnumIssueStatusFilter },
+      select: { id: true, position: true },
+      orderBy: { position: 'asc' }
+    });
+  }
+
+  async getMaxPosition(projectId: string, status: string): Promise<number> {
+    const issue = await prisma.issue.findFirst({
+      where: { projectId, status: status as Prisma.EnumIssueStatusFilter },
+      orderBy: { position: 'desc' },
+      select: { position: true }
+    });
+    return issue?.position ?? 0;
+  }
+
 }
 
 export const issuesRepository = new IssuesRepository();

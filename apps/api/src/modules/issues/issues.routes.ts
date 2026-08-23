@@ -13,6 +13,7 @@ router.get('/:issueId', requireProjectRole('VIEWER'), issuesController.getIssue)
 
 // MEMBER can mutate (create, update, delete)
 router.post('/', requireProjectRole('MEMBER'), issuesController.createIssue);
+router.patch('/:issueId/move', requireProjectRole('MEMBER'), issuesController.moveIssue);
 router.patch('/:issueId', requireProjectRole('MEMBER'), issuesController.updateIssue);
 router.delete('/:issueId', requireProjectRole('MEMBER'), issuesController.deleteIssue);
 

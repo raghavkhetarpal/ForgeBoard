@@ -21,12 +21,14 @@ describe('IssuesService Unit Tests', () => {
 
     it('creates issue if assignee is a project member', async () => {
       vi.mocked(issuesRepository.isProjectMember).mockResolvedValue(true);
+      vi.mocked(issuesRepository.getMaxPosition).mockResolvedValue(0);
       vi.mocked(issuesRepository.create).mockResolvedValue({ id: 'issue1' } as unknown as import('@forgeboard/types').IssueDto);
       
       const result = await issuesService.createIssue('proj1', 'ws1', 'user1', { title: 'Test', assigneeId: 'member1' });
       
       expect(result.id).toBe('issue1');
       expect(issuesRepository.create).toHaveBeenCalledWith({
+        position: 1024,
         workspaceId: 'ws1',
         projectId: 'proj1',
         creatorId: 'user1',
@@ -57,3 +59,48 @@ describe('IssuesService Unit Tests', () => {
     });
   });
 });
+
+  describe('moveIssue', () => {
+    it('moves to empty column (1024)', async () => {
+      vi.mocked(issuesRepository.findById).mockResolvedValue({ id: 'issue1', projectId: 'proj1' } as unknown as import('@forgeboard/types').IssueDto);
+      vi.mocked(issuesRepository.findIssuesByStatusOrdered).mockResolvedValue([]);
+      vi.mocked(issuesRepository.update).mockResolvedValue({ id: 'issue1' } as unknown as import('@forgeboard/types').IssueDto);
+      
+      await issuesService.moveIssue('proj1', 'issue1', 'IN_PROGRESS', 0);
+      
+      expect(issuesRepository.update).toHaveBeenCalledWith('issue1', { status: 'IN_PROGRESS', position: 1024 });
+    });
+
+    it('moves to top of non-empty column', async () => {
+      vi.mocked(issuesRepository.findById).mockResolvedValue({ id: 'issue1', projectId: 'proj1' } as unknown as import('@forgeboard/types').IssueDto);
+      vi.mocked(issuesRepository.findIssuesByStatusOrdered).mockResolvedValue([{ id: 'issue2', position: 1000 }]);
+      vi.mocked(issuesRepository.update).mockResolvedValue({ id: 'issue1' } as unknown as import('@forgeboard/types').IssueDto);
+      
+      await issuesService.moveIssue('proj1', 'issue1', 'IN_PROGRESS', 0);
+      
+      expect(issuesRepository.update).toHaveBeenCalledWith('issue1', { status: 'IN_PROGRESS', position: 500 });
+    });
+
+    it('moves to bottom of column', async () => {
+      vi.mocked(issuesRepository.findById).mockResolvedValue({ id: 'issue1', projectId: 'proj1' } as unknown as import('@forgeboard/types').IssueDto);
+      vi.mocked(issuesRepository.findIssuesByStatusOrdered).mockResolvedValue([{ id: 'issue2', position: 1000 }]);
+      vi.mocked(issuesRepository.update).mockResolvedValue({ id: 'issue1' } as unknown as import('@forgeboard/types').IssueDto);
+      
+      await issuesService.moveIssue('proj1', 'issue1', 'IN_PROGRESS', 1);
+      
+      expect(issuesRepository.update).toHaveBeenCalledWith('issue1', { status: 'IN_PROGRESS', position: 2024 });
+    });
+
+    it('moves between two existing issues', async () => {
+      vi.mocked(issuesRepository.findById).mockResolvedValue({ id: 'issue1', projectId: 'proj1' } as unknown as import('@forgeboard/types').IssueDto);
+      vi.mocked(issuesRepository.findIssuesByStatusOrdered).mockResolvedValue([
+        { id: 'issue2', position: 1000 },
+        { id: 'issue3', position: 2000 }
+      ]);
+      vi.mocked(issuesRepository.update).mockResolvedValue({ id: 'issue1' } as unknown as import('@forgeboard/types').IssueDto);
+      
+      await issuesService.moveIssue('proj1', 'issue1', 'IN_PROGRESS', 1);
+      
+      expect(issuesRepository.update).toHaveBeenCalledWith('issue1', { status: 'IN_PROGRESS', position: 1500 });
+    });
+  });

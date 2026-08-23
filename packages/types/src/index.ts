@@ -140,6 +140,7 @@ export interface IssueDto {
   title: string;
   description: string | null;
   status: IssueStatus;
+  position: number;
   priority: IssuePriority;
   dueDate: Date | string | null;
   createdAt: Date | string;

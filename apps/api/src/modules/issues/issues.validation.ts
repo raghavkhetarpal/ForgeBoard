@@ -23,3 +23,8 @@ export const listIssuesSchema = z.object({
   priority: z.string().optional(),
   assigneeId: z.string().optional(),
 });
+
+export const moveIssueSchema = z.object({
+  status: z.enum(['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED']),
+  position: z.number().int().min(0), // The target index (0-based) in the column
+});

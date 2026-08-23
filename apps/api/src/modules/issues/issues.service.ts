@@ -12,6 +12,11 @@ export class IssuesService {
       }
     }
 
+    if (data.position === undefined) {
+      const maxPos = await issuesRepository.getMaxPosition(projectId, data.status ?? 'TODO');
+      data.position = maxPos + 1024;
+    }
+
     return issuesRepository.create({
       workspaceId,
       projectId,
@@ -55,6 +60,38 @@ export class IssuesService {
     }
     await issuesRepository.delete(issueId);
   }
+
+  async moveIssue(projectId: string, issueId: string, status: string, targetIndex: number): Promise<IssueDto> {
+    const issue = await issuesRepository.findById(issueId);
+    if (!issue || issue.projectId !== projectId) {
+      throw new AppError('Issue not found', 404, 'NOT_FOUND');
+    }
+
+    const columnIssues = await issuesRepository.findIssuesByStatusOrdered(projectId, status);
+    
+    // Remove the current issue from the column if it's already there (moving within same column)
+    const filteredIssues = columnIssues.filter(i => i.id !== issueId);
+    
+    let newPosition: number;
+    if (filteredIssues.length === 0) {
+      // Empty column
+      newPosition = 1024;
+    } else if (targetIndex <= 0) {
+      // Move to top
+      newPosition = filteredIssues[0].position / 2;
+    } else if (targetIndex >= filteredIssues.length) {
+      // Move to bottom
+      newPosition = filteredIssues[filteredIssues.length - 1].position + 1024;
+    } else {
+      // Insert between two existing issues
+      const prev = filteredIssues[targetIndex - 1];
+      const next = filteredIssues[targetIndex];
+      newPosition = (prev.position + next.position) / 2;
+    }
+
+    return issuesRepository.update(issueId, { status: status as Prisma.EnumIssueStatusFieldUpdateOperationsInput, position: newPosition });
+  }
+
 }
 
 export const issuesService = new IssuesService();

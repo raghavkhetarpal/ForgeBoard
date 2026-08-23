@@ -96,4 +96,51 @@ describe('Issues Module Integration Tests', () => {
     const res = await request(app).patch(`/api/projects/${projectId}/issues/${issueId}`).set('Authorization', `Bearer ${viewerToken}`).send({ title: 'Hacked' });
     expect(res.status).toBe(403);
   });
+
+
+  describe('Kanban Ordering', () => {
+    let i1: string, i2: string, i3: string;
+    
+    it('create 3 issues in TODO', async () => {
+      const r1 = await request(app).post(`/api/projects/${projectId}/issues`).set('Authorization', `Bearer ${memberToken}`).send({ title: 'K1' });
+      const r2 = await request(app).post(`/api/projects/${projectId}/issues`).set('Authorization', `Bearer ${memberToken}`).send({ title: 'K2' });
+      const r3 = await request(app).post(`/api/projects/${projectId}/issues`).set('Authorization', `Bearer ${memberToken}`).send({ title: 'K3' });
+      
+      i1 = r1.body.issue.id;
+      i2 = r2.body.issue.id;
+      i3 = r3.body.issue.id;
+    });
+
+    it('move issue 3 to top', async () => {
+      const res = await request(app).patch(`/api/projects/${projectId}/issues/${i3}/move`).set('Authorization', `Bearer ${memberToken}`).send({ status: 'TODO', position: 0 });
+      expect(res.status).toBe(200);
+      expect(res.body.issue.position).toBeLessThan(1024);
+    });
+
+    it('verify order via GET list', async () => {
+      const res = await request(app).get(`/api/projects/${projectId}/issues?status=TODO`).set('Authorization', `Bearer ${memberToken}`);
+      const issues = res.body.issues.filter((i: { title: string, id: string, position: number }) => ['K1', 'K2', 'K3'].includes(i.title));
+      expect(issues.length).toBe(3);
+      expect(issues[0].id).toBe(i3);
+      expect(issues[1].id).toBe(i1);
+      expect(issues[2].id).toBe(i2);
+    });
+
+    it('move issue across columns', async () => {
+      const res = await request(app).patch(`/api/projects/${projectId}/issues/${i1}/move`).set('Authorization', `Bearer ${memberToken}`).send({ status: 'IN_PROGRESS', position: 0 });
+      expect(res.status).toBe(200);
+      expect(res.body.issue.status).toBe('IN_PROGRESS');
+
+      const oldRes = await request(app).get(`/api/projects/${projectId}/issues?status=TODO`).set('Authorization', `Bearer ${memberToken}`);
+      const oldIssues = oldRes.body.issues.filter((i: { title: string, id: string }) => ['K1', 'K2', 'K3'].includes(i.title));
+      expect(oldIssues.length).toBe(2);
+      expect(oldIssues[0].id).toBe(i3);
+      expect(oldIssues[1].id).toBe(i2);
+
+      const newRes = await request(app).get(`/api/projects/${projectId}/issues?status=IN_PROGRESS`).set('Authorization', `Bearer ${memberToken}`);
+      const newIssues = newRes.body.issues.filter((i: { title: string, id: string }) => ['K1'].includes(i.title));
+      expect(newIssues.length).toBe(1);
+      expect(newIssues[0].id).toBe(i1);
+    });
+  });
 });
