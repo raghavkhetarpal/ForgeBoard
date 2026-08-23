@@ -1,9 +1,10 @@
 import { issuesRepository } from './issues.repository';
 import { AppError } from '../../infrastructure/errors';
 import { IssueDto } from '@forgeboard/types';
+import { Prisma } from '@prisma/client';
 
 export class IssuesService {
-  async createIssue(projectId: string, workspaceId: string, creatorId: string, data: any): Promise<IssueDto> {
+  async createIssue(projectId: string, workspaceId: string, creatorId: string, data: Omit<Prisma.IssueUncheckedCreateInput, 'workspaceId' | 'projectId' | 'creatorId'>): Promise<IssueDto> {
     if (data.assigneeId) {
       const isValidAssignee = await issuesRepository.isProjectMember(projectId, data.assigneeId);
       if (!isValidAssignee) {
@@ -31,13 +32,13 @@ export class IssuesService {
     return issuesRepository.findMany(projectId, filters);
   }
 
-  async updateIssue(projectId: string, issueId: string, data: any): Promise<IssueDto> {
+  async updateIssue(projectId: string, issueId: string, data: Prisma.IssueUncheckedUpdateInput): Promise<IssueDto> {
     const issue = await issuesRepository.findById(issueId);
     if (!issue || issue.projectId !== projectId) {
       throw new AppError('Issue not found', 404, 'NOT_FOUND');
     }
 
-    if (data.assigneeId && data.assigneeId !== issue.assigneeId) {
+    if (data.assigneeId && typeof data.assigneeId === 'string' && data.assigneeId !== issue.assigneeId) {
       const isValidAssignee = await issuesRepository.isProjectMember(projectId, data.assigneeId);
       if (!isValidAssignee) {
         throw new AppError('Assignee must be a member of the project.', 400, 'BAD_REQUEST');

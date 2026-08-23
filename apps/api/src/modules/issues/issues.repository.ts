@@ -26,8 +26,8 @@ export class IssuesRepository {
   async findMany(projectId: string, filters: { status?: string, priority?: string, assigneeId?: string }): Promise<IssueDto[]> {
     const where: Prisma.IssueWhereInput = { projectId };
     
-    if (filters.status) where.status = filters.status as any;
-    if (filters.priority) where.priority = filters.priority as any;
+    if (filters.status) where.status = filters.status as Prisma.EnumIssueStatusFilter;
+    if (filters.priority) where.priority = filters.priority as Prisma.EnumIssuePriorityFilter;
     if (filters.assigneeId) where.assigneeId = filters.assigneeId;
 
     return prisma.issue.findMany({

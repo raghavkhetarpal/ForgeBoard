@@ -21,7 +21,7 @@ describe('IssuesService Unit Tests', () => {
 
     it('creates issue if assignee is a project member', async () => {
       vi.mocked(issuesRepository.isProjectMember).mockResolvedValue(true);
-      vi.mocked(issuesRepository.create).mockResolvedValue({ id: 'issue1' } as any);
+      vi.mocked(issuesRepository.create).mockResolvedValue({ id: 'issue1' } as unknown as import('@forgeboard/types').IssueDto);
       
       const result = await issuesService.createIssue('proj1', 'ws1', 'user1', { title: 'Test', assigneeId: 'member1' });
       
@@ -38,7 +38,7 @@ describe('IssuesService Unit Tests', () => {
 
   describe('updateIssue', () => {
     it('throws error if new assignee is not a project member', async () => {
-      vi.mocked(issuesRepository.findById).mockResolvedValue({ id: 'issue1', projectId: 'proj1', assigneeId: 'user1' } as any);
+      vi.mocked(issuesRepository.findById).mockResolvedValue({ id: 'issue1', projectId: 'proj1', assigneeId: 'user1' } as unknown as import('@forgeboard/types').IssueDto);
       vi.mocked(issuesRepository.isProjectMember).mockResolvedValue(false);
       
       await expect(
@@ -47,8 +47,8 @@ describe('IssuesService Unit Tests', () => {
     });
 
     it('allows updating if assignee is not changing, without calling isProjectMember', async () => {
-      vi.mocked(issuesRepository.findById).mockResolvedValue({ id: 'issue1', projectId: 'proj1', assigneeId: 'user1' } as any);
-      vi.mocked(issuesRepository.update).mockResolvedValue({ id: 'issue1' } as any);
+      vi.mocked(issuesRepository.findById).mockResolvedValue({ id: 'issue1', projectId: 'proj1', assigneeId: 'user1' } as unknown as import('@forgeboard/types').IssueDto);
+      vi.mocked(issuesRepository.update).mockResolvedValue({ id: 'issue1' } as unknown as import('@forgeboard/types').IssueDto);
       
       await issuesService.updateIssue('proj1', 'issue1', { assigneeId: 'user1', title: 'New title' });
       
