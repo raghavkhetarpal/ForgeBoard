@@ -9,10 +9,12 @@ import { getSocketServer } from './socket';
 describe('Socket.IO Connection and Room Authorization', () => {
   let memberToken: string;
   let nonMemberToken: string;
+  let adminToken: string;
   let projectId: string;
   let workspaceId: string;
   let memberId: string;
   let nonMemberId: string;
+  let adminId: string;
   let port: number;
 
   beforeAll(async () => {
@@ -28,11 +30,17 @@ describe('Socket.IO Connection and Room Authorization', () => {
     nonMemberId = nonMember.id;
     nonMemberToken = (await createSession(nonMember.id, nonMember.email)).sessionId;
 
+    const admin = await prisma.user.create({
+      data: { email: `admin-${randomUUID()}@example.com`, name: 'Admin', passwordHash: 'hash' }
+    });
+    adminId = admin.id;
+    adminToken = (await createSession(admin.id, admin.email)).sessionId;
+
     const ws = await prisma.workspace.create({
       data: {
         name: 'Socket Workspace',
         slug: `ws-socket-${randomUUID()}`,
-        members: { create: [{ userId: member.id, role: 'MEMBER' }] }
+        members: { create: [{ userId: member.id, role: 'MEMBER' }, { userId: admin.id, role: 'ADMIN' }] }
       }
     });
     workspaceId = ws.id;
@@ -60,6 +68,7 @@ describe('Socket.IO Connection and Room Authorization', () => {
     await prisma.workspace.delete({ where: { id: workspaceId } });
     await prisma.user.delete({ where: { id: memberId } });
     await prisma.user.delete({ where: { id: nonMemberId } });
+    await prisma.user.delete({ where: { id: adminId } });
   });
 
   it('rejects connection without valid session', () => {
@@ -116,6 +125,27 @@ describe('Socket.IO Connection and Room Authorization', () => {
           console.log('-----------------------------');
 
           // Assert strictly via server state
+          expect(serverSocket!.rooms.has(`project:${projectId}`)).toBe(false);
+
+          clientSocket.close();
+          resolve();
+        });
+      });
+    });
+  });
+
+  it('rejects join:project for workspace ADMIN who is not an explicit project member', () => {
+    return new Promise<void>((resolve) => {
+      const clientSocket = Client(`http://localhost:${port}`, {
+        auth: { token: adminToken },
+        transports: ['websocket'],
+      });
+
+      clientSocket.on('connect', () => {
+        const serverSocket = Array.from(getSocketServer().sockets.sockets.values()).find(s => s.data.user.id === adminId);
+        
+        clientSocket.emit('join:project', { projectId }, (res: { success?: boolean; error?: string; room?: string }) => {
+          expect(res.error).toBe('Forbidden');
           expect(serverSocket!.rooms.has(`project:${projectId}`)).toBe(false);
 
           clientSocket.close();
