@@ -13,6 +13,7 @@ describe('Comments Module Integration Tests', () => {
   let workspaceId: string;
   let projectId: string;
   let issueId: string;
+  let nonMemberId: string;
 
   beforeAll(async () => {
     const author = await prisma.user.create({
@@ -47,9 +48,10 @@ describe('Comments Module Integration Tests', () => {
     });
 
 
-    await await prisma.user.create({
+    const nonMember = await prisma.user.create({
       data: { email: `nonmember-${randomUUID()}@example.com`, name: 'Non Member', passwordHash: 'hash' }
     });
+    nonMemberId = nonMember.id;
     // no project membership for nonMember
 
     const issue = await prisma.issue.create({
@@ -62,6 +64,7 @@ describe('Comments Module Integration Tests', () => {
     await prisma.workspace.delete({ where: { id: workspaceId } });
     await prisma.user.delete({ where: { id: authorId } });
     await prisma.user.delete({ where: { id: nonAuthorId } });
+    await prisma.user.delete({ where: { id: nonMemberId } });
   });
 
   it('comments E2E flow', async () => {
@@ -121,7 +124,6 @@ describe('Comments Module Integration Tests', () => {
     expect(createRes.status).toBe(201);
     
     // Wait a brief moment since processMentions is fire-and-forget
-    await new Promise(r => setTimeout(r, 100));
 
     // B should have a notification
     const getB = await request(app).get('/api/notifications').set('Authorization', `Bearer ${nonAuthorToken}`);

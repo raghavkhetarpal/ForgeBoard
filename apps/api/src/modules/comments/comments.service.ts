@@ -43,7 +43,7 @@ export class CommentsService {
       authorId,
       content,
     });
-    this.processMentions(projectId, comment.id, authorId, content); // fire-and-forget
+    await this.processMentions(projectId, comment.id, authorId, content);
     return comment;
 
   }
@@ -73,7 +73,7 @@ export class CommentsService {
     }
 
     const updated = await commentsRepository.update(commentId, { content, edited: true });
-    this.processMentions(projectId, commentId, authorId, content); // fire-and-forget
+    await this.processMentions(projectId, commentId, authorId, content);
     return updated;
   }
 
