@@ -1,5 +1,15 @@
 # ForgeBoard
 
+## Current Features & Status
+ForgeBoard is actively under development. Currently implemented backend API modules include:
+- **Auth**: Secure session management utilizing Redis.
+- **Workspaces**: Multi-tenant organizations with strict RBAC (OWNER, ADMIN, MEMBER, VIEWER).
+- **Projects**: Scoped project boards within workspaces, supporting implicit and explicit role inheritance.
+- **Issues (Kanban)**: Issue tracking with infinite-precision floating-point ordering (LexoRank-lite) for high-performance Kanban board reordering.
+- **Labels**: Project-scoped labels (tags) assigned to issues, cascading automatically on deletion.
+- **Comments**: Discussion threads on issues. Editing is strictly author-only, while deletion supports project ADMIN moderation.
+- **Mentions & Notifications**: In-comment `@email` mentions dynamically trigger robust, paginated in-app notifications (alongside assignment notifications).
+
 ## Local Setup
 
 ### Prerequisites
