@@ -132,4 +132,49 @@ describe('Activity Module Integration Tests', () => {
     console.log(JSON.stringify(myActivities, null, 2));
     console.log('----------------------------');
   });
+
+  it('moveIssue: creates activity on cross-column move but not on same-column reorder', async () => {
+    const wait = () => new Promise(r => setTimeout(r, 10));
+
+    // Create an issue specifically for this test
+    const createRes = await request(app)
+      .post(`/api/projects/${projectId}/issues`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .send({
+        title: 'Move Issue Test',
+        description: 'Testing move logic'
+      });
+    expect(createRes.status).toBe(201);
+    const issueId = createRes.body.issue.id;
+    await wait();
+
+    // Clear previous activities for this issue (to isolate the count)
+    await prisma.activity.deleteMany({ where: { targetId: issueId } });
+
+    // CASE B: Same-column reorder
+    const sameColumnRes = await request(app)
+      .patch(`/api/projects/${projectId}/issues/${issueId}/move`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .send({ status: 'TODO', position: 512 });
+    expect(sameColumnRes.status).toBe(200);
+    await wait();
+
+    let acts = await prisma.activity.findMany({ where: { targetId: issueId } });
+    expect(acts).toHaveLength(0); // NO activity for same-column reorder
+
+    // CASE A: Cross-column move
+    const crossColumnRes = await request(app)
+      .patch(`/api/projects/${projectId}/issues/${issueId}/move`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .send({ status: 'IN_PROGRESS', position: 1024 });
+    expect(crossColumnRes.status).toBe(200);
+    await wait();
+
+    acts = await prisma.activity.findMany({ where: { targetId: issueId } });
+    expect(acts).toHaveLength(1); // Exactly ONE activity created
+    expect(acts[0].action).toBe('ISSUE_STATUS_CHANGED');
+    expect((acts[0].metadata as any).from).toBe('TODO');
+    expect((acts[0].metadata as any).to).toBe('IN_PROGRESS');
+  });
+
 });
