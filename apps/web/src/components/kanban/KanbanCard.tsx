@@ -1,0 +1,96 @@
+"use client";
+
+import React from 'react';
+import { IssueDto, IssuePriority } from '@forgeboard/types';
+import { Clock, AlertTriangle, ArrowUp, ArrowRight, ArrowDown } from 'lucide-react';
+
+interface KanbanCardProps {
+  issue: IssueDto;
+  index: number;
+  onClick: () => void;
+  onDragStart: (e: React.DragEvent<HTMLDivElement>, issue: IssueDto, index: number) => void;
+}
+
+const PRIORITY_CONFIG: Record<
+  IssuePriority,
+  { label: string; color: string; icon: React.ComponentType<{ className?: string }> }
+> = {
+  URGENT: {
+    label: 'Urgent',
+    color: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
+    icon: AlertTriangle,
+  },
+  HIGH: {
+    label: 'High',
+    color: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800',
+    icon: ArrowUp,
+  },
+  MEDIUM: {
+    label: 'Medium',
+    color: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
+    icon: ArrowRight,
+  },
+  LOW: {
+    label: 'Low',
+    color: 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/40 dark:text-slate-400 dark:border-slate-700',
+    icon: ArrowDown,
+  },
+};
+
+export function KanbanCard({ issue, index, onClick, onDragStart }: KanbanCardProps) {
+  const priority = PRIORITY_CONFIG[issue.priority] || PRIORITY_CONFIG.MEDIUM;
+  const PriorityIcon = priority.icon;
+
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    onDragStart(e, issue, index);
+  };
+
+  return (
+    <div
+      draggable
+      onDragStart={handleDragStart}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className="group p-3.5 bg-background rounded-lg border border-border hover:border-primary/50 shadow-xs hover:shadow-md transition-all duration-150 cursor-grab active:cursor-grabbing space-y-2.5 select-none"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <h4 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+          {issue.title}
+        </h4>
+      </div>
+
+      {issue.description && (
+        <p className="text-xs text-foreground/60 line-clamp-2 leading-relaxed">
+          {issue.description}
+        </p>
+      )}
+
+      <div className="flex items-center justify-between pt-1 text-xs text-foreground/50 border-t border-border/40">
+        <span
+          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium border ${priority.color}`}
+        >
+          <PriorityIcon className="h-3 w-3" />
+          <span>{priority.label}</span>
+        </span>
+
+        {issue.dueDate ? (
+          <span className="flex items-center gap-1 text-[11px] text-foreground/60">
+            <Clock className="h-3 w-3" />
+            <span>{new Date(issue.dueDate).toLocaleDateString()}</span>
+          </span>
+        ) : (
+          <span className="text-[11px] font-mono text-foreground/40">
+            pos:{Math.round(issue.position)}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -8,6 +8,7 @@ import { AppHeader } from '@/components/navigation/AppHeader';
 import { Button } from '@/components/ui/Button';
 import { apiFetch, ApiError } from '@/lib/api';
 import { ProjectDto, WorkspaceDto, WorkspaceMemberDto } from '@forgeboard/types';
+import { KanbanBoard } from '@/components/kanban/KanbanBoard';
 import {
   FolderKanban,
   AlertCircle,
@@ -21,6 +22,7 @@ import {
   Building2,
   Users,
   ArrowLeft,
+  ArrowRight,
 } from 'lucide-react';
 
 interface ProjectResponse {
@@ -53,7 +55,7 @@ export default function ProjectPage() {
   const [project, setProject] = useState<ProjectDto | null>(null);
   const [workspace, setWorkspace] = useState<WorkspaceDto | null>(null);
   const [members, setMembers] = useState<WorkspaceMemberDto[]>([]);
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>('board');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -286,19 +288,28 @@ export default function ProjectPage() {
                     </p>
                   </div>
 
-                  {/* Upcoming Kanban Callout */}
-                  <div className="p-6 rounded-xl border border-dashed border-border bg-background/50 flex items-start gap-4">
-                    <div className="p-2.5 rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5">
-                      <Layers className="h-5 w-5" />
+                  {/* Kanban Quick Action */}
+                  <div className="p-6 rounded-xl border border-border bg-background flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex items-start gap-3.5">
+                      <div className="p-2.5 rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5">
+                        <Layers className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <h3 className="text-sm font-semibold text-foreground">
+                          Interactive Issue Board
+                        </h3>
+                        <p className="text-xs text-foreground/60 leading-relaxed">
+                          Manage tasks, drag issues between backlog, todo, in progress, and done columns.
+                        </p>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-semibold text-foreground">
-                        Ready for Task Tracking
-                      </h3>
-                      <p className="text-xs text-foreground/60 leading-relaxed">
-                        The navigation foundation for this project is established. In the upcoming phase, the interactive Kanban board will be mounted here to support drag-and-drop issue cards, status columns, and real-time updates.
-                      </p>
-                    </div>
+                    <Button
+                      onClick={() => setActiveTab('board')}
+                      className="text-xs shrink-0 flex items-center gap-1.5"
+                    >
+                      <span>Open Kanban Board</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
 
@@ -358,19 +369,7 @@ export default function ProjectPage() {
             )}
 
             {activeTab === 'board' && (
-              <div className="py-16 px-4 rounded-xl border border-dashed border-border bg-background/50 flex flex-col items-center justify-center text-center space-y-4">
-                <div className="p-3 rounded-full bg-primary/10 text-primary">
-                  <Layers className="h-8 w-8" />
-                </div>
-                <div className="max-w-md space-y-1">
-                  <h3 className="text-base font-semibold text-foreground">
-                    Kanban Board (Next Phase)
-                  </h3>
-                  <p className="text-sm text-foreground/60">
-                    The interactive board with drag-and-drop issue management, column reordering, and assignees will be built in the upcoming Kanban phase.
-                  </p>
-                </div>
-              </div>
+              <KanbanBoard projectId={projectId} />
             )}
 
             {activeTab === 'activity' && (

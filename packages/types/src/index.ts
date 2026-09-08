@@ -157,6 +157,29 @@ export interface IssueDto {
   comments?: CommentDto[];
 }
 
+export interface CreateIssueInput {
+  title: string;
+  description?: string | null;
+  status?: IssueStatus;
+  priority?: IssuePriority;
+  assigneeId?: string | null;
+  dueDate?: string | null;
+}
+
+export interface UpdateIssueInput {
+  title?: string;
+  description?: string | null;
+  status?: IssueStatus;
+  priority?: IssuePriority;
+  assigneeId?: string | null;
+  dueDate?: string | null;
+}
+
+export interface MoveIssueInput {
+  status: IssueStatus;
+  position: number;
+}
+
 // Label DTO
 export interface LabelDto {
   id: string;
