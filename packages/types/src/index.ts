@@ -189,6 +189,16 @@ export interface LabelDto {
   createdAt: Date | string;
 }
 
+export interface CreateLabelInput {
+  name: string;
+  color: string;
+}
+
+export interface UpdateLabelInput {
+  name?: string;
+  color?: string;
+}
+
 export interface CommentDto {
   id: string;
   issueId: string;

@@ -72,6 +72,34 @@ export function KanbanCard({ issue, index, onClick, onDragStart }: KanbanCardPro
         </p>
       )}
 
+      {issue.labels && issue.labels.length > 0 && (
+        <div className="flex flex-wrap gap-1 items-center pt-0.5">
+          {issue.labels.slice(0, 3).map((l) => (
+            <span
+              key={l.id}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border"
+              style={{
+                backgroundColor: `${l.color}18`,
+                borderColor: `${l.color}44`,
+              }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full shrink-0"
+                style={{ backgroundColor: l.color }}
+              />
+              <span className="truncate max-w-[100px] text-foreground/80 font-medium">
+                {l.name}
+              </span>
+            </span>
+          ))}
+          {issue.labels.length > 3 && (
+            <span className="text-[10px] font-medium text-foreground/50 px-0.5">
+              +{issue.labels.length - 3}
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between pt-1 text-xs text-foreground/50 border-t border-border/40">
         <span
           className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium border ${priority.color}`}

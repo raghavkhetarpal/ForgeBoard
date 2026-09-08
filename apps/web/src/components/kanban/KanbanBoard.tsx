@@ -2,10 +2,11 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
-import { IssueDto, IssueStatus, WorkspaceMemberDto } from '@forgeboard/types';
+import { IssueDto, IssueStatus, WorkspaceMemberDto, LabelDto } from '@forgeboard/types';
 import { KanbanColumn } from './KanbanColumn';
 import { CreateIssueModal } from './CreateIssueModal';
 import { IssueDetailModal } from './IssueDetailModal';
+import { ManageLabelsModal } from '@/components/labels/ManageLabelsModal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import {
@@ -15,6 +16,7 @@ import {
   Search,
   Filter,
   X,
+  Tag,
 } from 'lucide-react';
 
 interface KanbanBoardProps {
@@ -27,6 +29,10 @@ interface KanbanBoardProps {
 
 interface ListIssuesResponse {
   issues: IssueDto[];
+}
+
+interface ListLabelsResponse {
+  labels: LabelDto[];
 }
 
 interface MoveIssueResponse {
@@ -50,6 +56,7 @@ export function KanbanBoard({
   isProjectAdmin = false,
 }: KanbanBoardProps) {
   const [issues, setIssues] = useState<IssueDto[]>([]);
+  const [labels, setLabels] = useState<LabelDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -57,9 +64,11 @@ export function KanbanBoard({
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
+  const [labelFilter, setLabelFilter] = useState<string>('ALL');
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isManageLabelsModalOpen, setIsManageLabelsModalOpen] = useState(false);
   const [createInitialStatus, setCreateInitialStatus] = useState<IssueStatus>('TODO');
   const [selectedIssue, setSelectedIssue] = useState<IssueDto | null>(null);
 
@@ -69,17 +78,21 @@ export function KanbanBoard({
     sourceIndex: number;
   } | null>(null);
 
-  const loadIssues = useCallback(async () => {
+  const loadBoardData = useCallback(async () => {
     if (!projectId) return;
     setLoading(true);
     setError(null);
     setActionError(null);
 
     try {
-      const res = await apiFetch<ListIssuesResponse>(
-        `/projects/${projectId}/issues`
-      );
-      setIssues(res.issues || []);
+      const [issuesRes, labelsRes] = await Promise.all([
+        apiFetch<ListIssuesResponse>(`/projects/${projectId}/issues`),
+        apiFetch<ListLabelsResponse>(`/projects/${projectId}/labels`).catch(
+          () => ({ labels: [] })
+        ),
+      ]);
+      setIssues(issuesRes.issues || []);
+      setLabels(labelsRes.labels || []);
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         if (err.status === 403) {
@@ -98,8 +111,8 @@ export function KanbanBoard({
   }, [projectId]);
 
   useEffect(() => {
-    loadIssues();
-  }, [loadIssues]);
+    loadBoardData();
+  }, [loadBoardData]);
 
   // Drag-and-drop start
   const handleDragStart = (
@@ -236,9 +249,14 @@ export function KanbanBoard({
       if (priorityFilter !== 'ALL' && issue.priority !== priorityFilter) {
         return false;
       }
+      if (labelFilter !== 'ALL') {
+        if (!issue.labels || !issue.labels.some((l) => l.id === labelFilter)) {
+          return false;
+        }
+      }
       return true;
     });
-  }, [issues, searchQuery, priorityFilter]);
+  }, [issues, searchQuery, priorityFilter, labelFilter]);
 
   if (loading) {
     return (
@@ -259,7 +277,7 @@ export function KanbanBoard({
           </h2>
           <p className="text-sm text-red-600 dark:text-red-400 max-w-md">{error}</p>
         </div>
-        <Button onClick={loadIssues} className="text-xs">
+        <Button onClick={loadBoardData} className="text-xs">
           Retry
         </Button>
       </div>
@@ -288,19 +306,19 @@ export function KanbanBoard({
       {/* Board Controls Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-background p-3 rounded-xl border border-border">
         {/* Left: Search & Filter */}
-        <div className="flex flex-1 items-center gap-2 max-w-md">
-          <div className="relative flex-1">
+        <div className="flex flex-1 flex-wrap items-center gap-2">
+          <div className="relative min-w-[160px] flex-1 max-w-xs">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-foreground/40" />
             <Input
               type="text"
-              placeholder="Search issues by title..."
+              placeholder="Search issues..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-9 pl-9 text-xs"
             />
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <Filter className="h-3.5 w-3.5 text-foreground/40 hidden sm:block" />
             <select
               value={priorityFilter}
@@ -313,14 +331,42 @@ export function KanbanBoard({
               <option value="MEDIUM">Medium</option>
               <option value="LOW">Low</option>
             </select>
+
+            <select
+              value={labelFilter}
+              onChange={(e) => setLabelFilter(e.target.value)}
+              className="h-9 rounded-md border border-border bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary max-w-[140px]"
+            >
+              <option value="ALL">All Labels</option>
+              {labels.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="outline"
-            onClick={loadIssues}
+            onClick={() => setIsManageLabelsModalOpen(true)}
+            className="h-9 px-2.5 text-xs flex items-center gap-1.5"
+            title="Manage Labels"
+          >
+            <Tag className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Labels</span>
+            {labels.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-foreground/10 text-[10px] font-mono">
+                {labels.length}
+              </span>
+            )}
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={loadBoardData}
             className="h-9 px-2.5 text-xs flex items-center gap-1.5"
             title="Refresh Board"
           >
@@ -377,12 +423,69 @@ export function KanbanBoard({
         onClose={() => setSelectedIssue(null)}
         projectId={projectId}
         issue={selectedIssue}
-        onIssueUpdated={handleIssueUpdated}
+        onIssueUpdated={(updated) => {
+          handleIssueUpdated(updated);
+          setSelectedIssue(updated);
+        }}
         onIssueDeleted={handleIssueDeleted}
         canEdit={canMutateIssues}
         members={members}
         currentUserId={currentUserId}
         isProjectAdmin={isProjectAdmin}
+        projectLabels={labels}
+        onOpenManageLabels={() => setIsManageLabelsModalOpen(true)}
+      />
+
+      <ManageLabelsModal
+        isOpen={isManageLabelsModalOpen}
+        onClose={() => setIsManageLabelsModalOpen(false)}
+        projectId={projectId}
+        labels={labels}
+        onLabelsChanged={(updatedLabels) => setLabels(updatedLabels)}
+        onLabelUpdated={(updatedLabel) => {
+          setIssues((prev) =>
+            prev.map((i) => ({
+              ...i,
+              labels: i.labels?.map((l) =>
+                l.id === updatedLabel.id ? updatedLabel : l
+              ),
+            }))
+          );
+          if (selectedIssue?.labels?.some((l) => l.id === updatedLabel.id)) {
+            setSelectedIssue((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    labels: prev.labels?.map((l) =>
+                      l.id === updatedLabel.id ? updatedLabel : l
+                    ),
+                  }
+                : null
+            );
+          }
+        }}
+        onLabelDeleted={(deletedLabelId) => {
+          setIssues((prev) =>
+            prev.map((i) => ({
+              ...i,
+              labels: i.labels?.filter((l) => l.id !== deletedLabelId),
+            }))
+          );
+          if (selectedIssue?.labels?.some((l) => l.id === deletedLabelId)) {
+            setSelectedIssue((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    labels: prev.labels?.filter((l) => l.id !== deletedLabelId),
+                  }
+                : null
+            );
+          }
+          if (labelFilter === deletedLabelId) {
+            setLabelFilter('ALL');
+          }
+        }}
+        canManage={canMutateIssues}
       />
     </div>
   );

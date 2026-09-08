@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { FormError } from '@/components/ui/FormError';
 import { apiFetch, ApiError } from '@/lib/api';
-import { IssueDto, IssueStatus, IssuePriority, WorkspaceMemberDto } from '@forgeboard/types';
+import { IssueDto, IssueStatus, IssuePriority, WorkspaceMemberDto, LabelDto } from '@forgeboard/types';
 import { CommentsSection } from '@/components/comments/CommentsSection';
-import { Trash2, Clock, Calendar, User as UserIcon } from 'lucide-react';
+import { Trash2, Clock, Calendar, User as UserIcon, Tag, Plus, X } from 'lucide-react';
 
 interface IssueDetailModalProps {
   isOpen: boolean;
@@ -21,6 +21,8 @@ interface IssueDetailModalProps {
   members?: WorkspaceMemberDto[];
   currentUserId?: string;
   isProjectAdmin?: boolean;
+  projectLabels?: LabelDto[];
+  onOpenManageLabels?: () => void;
 }
 
 interface UpdateIssueResponse {
@@ -54,6 +56,8 @@ export function IssueDetailModal({
   members = [],
   currentUserId,
   isProjectAdmin = false,
+  projectLabels = [],
+  onOpenManageLabels,
 }: IssueDetailModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -64,6 +68,12 @@ export function IssueDetailModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+
+  // Label attachment state
+  const [attachedLabels, setAttachedLabels] = useState<LabelDto[]>([]);
+  const [isLabelDropdownOpen, setIsLabelDropdownOpen] = useState(false);
+  const [isLabelMutating, setIsLabelMutating] = useState(false);
+  const [labelError, setLabelError] = useState<string | null>(null);
 
   useEffect(() => {
     if (issue) {
@@ -76,10 +86,75 @@ export function IssueDetailModal({
           ? new Date(issue.dueDate).toISOString().substring(0, 10)
           : ''
       );
+      setAttachedLabels(issue.labels || []);
       setError('');
+      setLabelError(null);
       setShowConfirmDelete(false);
+      setIsLabelDropdownOpen(false);
     }
   }, [issue]);
+
+  const handleAttachLabel = async (labelToAttach: LabelDto) => {
+    if (!issue || isLabelMutating) return;
+    setLabelError(null);
+    setIsLabelMutating(true);
+    const previous = attachedLabels;
+    const nextLabels = [...previous, labelToAttach];
+    setAttachedLabels(nextLabels);
+    setIsLabelDropdownOpen(false);
+
+    try {
+      await apiFetch<{ success: boolean }>(
+        `/projects/${projectId}/issues/${issue.id}/labels`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ labelId: labelToAttach.id }),
+        }
+      );
+      onIssueUpdated({ ...issue, labels: nextLabels });
+    } catch (err: unknown) {
+      setAttachedLabels(previous);
+      if (err instanceof ApiError) {
+        setLabelError(err.message || 'Failed to attach label.');
+      } else if (err instanceof Error) {
+        setLabelError(err.message);
+      } else {
+        setLabelError('Failed to attach label.');
+      }
+    } finally {
+      setIsLabelMutating(false);
+    }
+  };
+
+  const handleDetachLabel = async (labelId: string) => {
+    if (!issue || isLabelMutating) return;
+    setLabelError(null);
+    setIsLabelMutating(true);
+    const previous = attachedLabels;
+    const nextLabels = previous.filter((l) => l.id !== labelId);
+    setAttachedLabels(nextLabels);
+
+    try {
+      await apiFetch<{ success: boolean }>(
+        `/projects/${projectId}/issues/${issue.id}/labels/${labelId}`,
+        {
+          method: 'DELETE',
+        }
+      );
+      onIssueUpdated({ ...issue, labels: nextLabels });
+    } catch (err: unknown) {
+      setAttachedLabels(previous);
+      if (err instanceof ApiError) {
+        setLabelError(err.message || 'Failed to remove label.');
+      } else if (err instanceof Error) {
+        setLabelError(err.message);
+      } else {
+        setLabelError('Failed to remove label.');
+      }
+    } finally {
+      setIsLabelMutating(false);
+    }
+  };
 
   if (!issue) return null;
 
@@ -265,6 +340,130 @@ export function IssueDetailModal({
             onChange={(e) => setDueDate(e.target.value)}
             disabled={!canEdit || isSaving || isDeleting}
           />
+        </div>
+
+        {/* Labels Section */}
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-foreground/70 flex items-center gap-1.5">
+              <Tag className="h-3.5 w-3.5 text-primary" />
+              <span>Labels</span>
+            </span>
+
+            {canEdit && onOpenManageLabels && (
+              <button
+                type="button"
+                onClick={onOpenManageLabels}
+                className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
+              >
+                <span>Manage labels</span>
+              </button>
+            )}
+          </div>
+
+          {labelError && <FormError message={labelError} />}
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            {attachedLabels.map((l) => (
+              <span
+                key={l.id}
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border transition-colors"
+                style={{
+                  backgroundColor: `${l.color}18`,
+                  borderColor: `${l.color}44`,
+                }}
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: l.color }}
+                />
+                <span className="text-foreground/90 font-medium">{l.name}</span>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => handleDetachLabel(l.id)}
+                    disabled={isLabelMutating}
+                    className="text-foreground/40 hover:text-red-500 rounded-full p-0.5 ml-0.5 transition-colors cursor-pointer"
+                    title="Remove label"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </span>
+            ))}
+
+            {canEdit && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsLabelDropdownOpen(!isLabelDropdownOpen)}
+                  disabled={isLabelMutating}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-dashed border-border hover:border-primary/60 bg-background text-xs font-medium text-foreground/70 hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <Plus className="h-3 w-3" />
+                  <span>Add Label</span>
+                </button>
+
+                {isLabelDropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setIsLabelDropdownOpen(false)}
+                    />
+                    <div className="absolute left-0 mt-1 w-48 rounded-lg border border-border bg-background shadow-lg z-20 p-1 space-y-0.5 max-h-48 overflow-y-auto">
+                      {projectLabels.filter(
+                        (pl) => !attachedLabels.some((al) => al.id === pl.id)
+                      ).length === 0 ? (
+                        <div className="px-2 py-2 text-xs text-foreground/50 text-center">
+                          {projectLabels.length === 0
+                            ? 'No labels in project yet.'
+                            : 'All project labels attached.'}
+                        </div>
+                      ) : (
+                        projectLabels
+                          .filter(
+                            (pl) =>
+                              !attachedLabels.some((al) => al.id === pl.id)
+                          )
+                          .map((pl) => (
+                            <button
+                              key={pl.id}
+                              type="button"
+                              onClick={() => handleAttachLabel(pl)}
+                              className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-left hover:bg-foreground/5 transition-colors cursor-pointer"
+                            >
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: pl.color }}
+                              />
+                              <span className="truncate text-foreground/80 font-medium">
+                                {pl.name}
+                              </span>
+                            </button>
+                          ))
+                      )}
+
+                      {onOpenManageLabels && (
+                        <div className="pt-1 border-t border-border/60">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsLabelDropdownOpen(false);
+                              onOpenManageLabels();
+                            }}
+                            className="w-full flex items-center gap-1.5 px-2 py-1 rounded text-xs text-primary hover:bg-primary/5 transition-colors font-medium cursor-pointer"
+                          >
+                            <Plus className="h-3 w-3" />
+                            <span>Create / Manage</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Metadata Footer */}

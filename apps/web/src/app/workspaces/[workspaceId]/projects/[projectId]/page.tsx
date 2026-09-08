@@ -371,6 +371,9 @@ export default function ProjectPage() {
             {activeTab === 'board' && (
               <KanbanBoard
                 projectId={projectId}
+                canMutateIssues={
+                  members.find((m) => m.userId === user?.id)?.role !== 'VIEWER'
+                }
                 members={members}
                 currentUserId={user?.id}
                 isProjectAdmin={
