@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { projectsController } from './projects.controller';
+import { githubController } from '../github/github.controller';
 import { requireAuth } from '../../middleware/auth.middleware';
 import { requireWorkspaceRole, requireProjectRole } from '../../middleware/rbac.middleware';
 
@@ -54,6 +55,38 @@ projectRouter.delete(
   '/:projectId/members/:userId',
   requireProjectRole('ADMIN'), // only project admins can remove members
   projectsController.removeMember.bind(projectsController)
+);
+
+
+// GitHub Integration
+projectRouter.get(
+  '/:projectId/github/connect',
+  requireProjectRole('ADMIN'),
+  githubController.getConnectUrl
+);
+
+projectRouter.get(
+  '/:projectId/github/repos',
+  requireProjectRole('VIEWER'),
+  githubController.listConnectedRepositories
+);
+
+projectRouter.get(
+  '/:projectId/github/repos/available',
+  requireProjectRole('ADMIN'),
+  githubController.listAvailableRepositories
+);
+
+projectRouter.post(
+  '/:projectId/github/repos',
+  requireProjectRole('ADMIN'),
+  githubController.connectRepository
+);
+
+projectRouter.get(
+  '/:projectId/github/repos/:repoId/pulls',
+  requireProjectRole('VIEWER'),
+  githubController.listPullRequests
 );
 
 export { router as workspaceProjectsRouter, projectRouter };

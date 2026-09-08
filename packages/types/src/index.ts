@@ -183,3 +183,33 @@ export interface NotificationDto {
   read: boolean;
   createdAt: Date | string;
 }
+
+export interface GithubIntegrationDto {
+  id: string;
+  projectId: string;
+  workspaceId: string;
+  installedByUserId: string;
+  githubAccountLogin: string;
+  connectedAt: Date;
+}
+
+export interface GithubRepositoryDto {
+  id: string;
+  integrationId: string;
+  projectId: string;
+  githubRepoId: number;
+  owner: string;
+  name: string;
+  fullName: string;
+  connectedAt: Date;
+}
+
+export interface GithubPullRequestDto {
+  number: number;
+  title: string;
+  author: string;
+  status: 'open' | 'closed' | 'merged';
+  url: string;
+  createdAt: Date;
+  updatedAt: Date;
+}

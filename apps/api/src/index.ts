@@ -34,6 +34,7 @@ app.get('/health', (_req: Request, res: Response) => {
 import issuesRouter from './modules/issues/issues.routes';
 import notificationsRouter from './modules/notifications/notifications.routes';
 import labelsRoutes from './modules/labels/labels.routes';
+import githubRoutes from './modules/github/github.routes';
 
 // Mount modules
 app.use('/api/auth', authRoutes);
@@ -41,6 +42,7 @@ app.use('/api/workspaces', workspacesRoutes);
 app.use('/api/workspaces/:workspaceId/projects', workspaceProjectsRouter);
 app.use('/api/projects', projectRouter);
 app.use('/api/projects/:projectId/issues', issuesRouter);
+app.use('/api/github', githubRoutes);
 app.use('/api/projects/:projectId/labels', labelsRoutes);
 app.use('/api/notifications', notificationsRouter);
 

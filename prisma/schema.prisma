@@ -42,6 +42,7 @@ model User {
   assignedIssues Issue[]           @relation("IssueAssignee")
   comments       Comment[]
   notifications  Notification[]
+  installedGithubIntegrations GithubIntegration[]
 
   @@map("users")
 }
@@ -56,6 +57,7 @@ model Workspace {
   projects       Project[]
   projectMembers ProjectMember[]
   issues         Issue[]
+  githubIntegrations GithubIntegration[]
 
   @@map("workspaces")
 }
@@ -91,6 +93,8 @@ model Project {
   members     ProjectMember[]
   issues      Issue[]
   labels      Label[]
+  githubIntegration GithubIntegration?
+  githubRepositories GithubRepository[]
 
   @@index([workspaceId])
   @@map("projects")
@@ -225,4 +229,40 @@ model Notification {
 
   @@index([userId, read])
   @@map("notifications")
+}
+
+model GithubIntegration {
+  id                 String             @id @default(cuid())
+  projectId          String             @unique // 1-to-1 relation with Project (one active integration per project for this pass)
+  workspaceId        String
+  installedByUserId  String
+  accessToken        String             // Encrypted at rest
+  githubAccountLogin String
+  connectedAt        DateTime           @default(now())
+
+  project            Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspace          Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  installedByUser    User               @relation(fields: [installedByUserId], references: [id], onDelete: Cascade)
+  repositories       GithubRepository[]
+
+  @@index([workspaceId])
+  @@index([installedByUserId])
+}
+
+model GithubRepository {
+  id               String            @id @default(cuid())
+  integrationId    String
+  projectId        String
+  githubRepoId     Int               // GitHub's internal repository ID
+  owner            String
+  name             String
+  fullName         String
+  connectedAt      DateTime          @default(now())
+
+  integration      GithubIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, githubRepoId])
+  @@index([integrationId])
+  @@index([projectId])
 }
