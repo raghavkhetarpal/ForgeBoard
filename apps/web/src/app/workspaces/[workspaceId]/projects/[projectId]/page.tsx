@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { AppHeader } from '@/components/navigation/AppHeader';
@@ -10,6 +10,7 @@ import { apiFetch, ApiError } from '@/lib/api';
 import { ProjectDto, WorkspaceDto, WorkspaceMemberDto } from '@forgeboard/types';
 import { KanbanBoard } from '@/components/kanban/KanbanBoard';
 import { ProjectActivityFeed } from '@/components/activity/ProjectActivityFeed';
+import { ProjectGithubSettings } from '@/components/github/ProjectGithubSettings';
 import {
   FolderKanban,
   AlertCircle,
@@ -48,6 +49,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function ProjectPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isLoading: authLoading } = useAuth();
 
   const workspaceId = params.workspaceId as string;
@@ -59,6 +61,16 @@ export default function ProjectPage() {
   const [activeTab, setActiveTab] = useState<TabType>('board');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync tab from query parameters if present (e.g. from OAuth redirect)
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'settings' || tab === 'board' || tab === 'overview' || tab === 'activity') {
+      setActiveTab(tab as TabType);
+    } else if (searchParams.get('github')) {
+      setActiveTab('settings');
+    }
+  }, [searchParams]);
 
   // Authentication Route Protection
   useEffect(() => {
@@ -389,19 +401,26 @@ export default function ProjectPage() {
             )}
 
             {activeTab === 'settings' && (
-              <div className="py-16 px-4 rounded-xl border border-dashed border-border bg-background/50 flex flex-col items-center justify-center text-center space-y-4">
-                <div className="p-3 rounded-full bg-primary/10 text-primary">
-                  <SettingsIcon className="h-8 w-8" />
-                </div>
-                <div className="max-w-md space-y-1">
-                  <h3 className="text-base font-semibold text-foreground">
-                    Project Settings
-                  </h3>
-                  <p className="text-sm text-foreground/60">
-                    Project administration, membership management, and integrations will be available in a subsequent phase.
-                  </p>
-                </div>
-              </div>
+              <ProjectGithubSettings
+                projectId={projectId}
+                isProjectAdmin={
+                  members.find((m) => m.userId === user?.id)?.role === 'OWNER' ||
+                  members.find((m) => m.userId === user?.id)?.role === 'ADMIN'
+                }
+                initialAlert={
+                  searchParams.get('github') === 'success'
+                    ? {
+                        type: 'success',
+                        message: 'GitHub account connected successfully!',
+                      }
+                    : searchParams.get('github') === 'error'
+                    ? {
+                        type: 'error',
+                        message: 'Failed to complete GitHub authorization.',
+                      }
+                    : null
+                }
+              />
             )}
           </>
         ) : null}

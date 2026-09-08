@@ -136,6 +136,16 @@ export type IssueStatus = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DO
 // Issue Priority Enum
 export type IssuePriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
+export interface IssuePullRequestDto {
+  id: string;
+  issueId: string;
+  githubRepositoryId: string;
+  prNumber: number;
+  prStatus: string;
+  prUrl: string;
+  linkedAt: Date | string;
+}
+
 // Issue DTO
 export interface IssueDto {
   id: string;
@@ -155,6 +165,17 @@ export interface IssueDto {
   assignee?: UserDto;
   labels?: LabelDto[];
   comments?: CommentDto[];
+  pullRequests?: IssuePullRequestDto[];
+}
+
+export interface LinkPullRequestInput {
+  repoId: string;
+  prNumber: number;
+}
+
+export interface ConnectGithubRepoInput {
+  owner: string;
+  repo: string;
 }
 
 export interface CreateIssueInput {
@@ -279,4 +300,13 @@ export interface GithubPullRequestDto {
   url: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface GithubAvailableRepoDto {
+  id: number;
+  name: string;
+  full_name: string;
+  owner: {
+    login: string;
+  };
 }

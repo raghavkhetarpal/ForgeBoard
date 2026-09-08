@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { FormError } from '@/components/ui/FormError';
 import { apiFetch, ApiError } from '@/lib/api';
-import { IssueDto, IssueStatus, IssuePriority, WorkspaceMemberDto, LabelDto } from '@forgeboard/types';
+import { IssueDto, IssueStatus, IssuePriority, WorkspaceMemberDto, LabelDto, IssuePullRequestDto, GithubRepositoryDto, GithubPullRequestDto } from '@forgeboard/types';
 import { CommentsSection } from '@/components/comments/CommentsSection';
-import { Trash2, Clock, Calendar, User as UserIcon, Tag, Plus, X } from 'lucide-react';
+import { Trash2, Clock, Calendar, User as UserIcon, Tag, Plus, X, GitPullRequest, ExternalLink, Loader2 } from 'lucide-react';
 
 interface IssueDetailModalProps {
   isOpen: boolean;
@@ -75,6 +75,19 @@ export function IssueDetailModal({
   const [isLabelMutating, setIsLabelMutating] = useState(false);
   const [labelError, setLabelError] = useState<string | null>(null);
 
+  // Pull request linking state
+  const [attachedPrs, setAttachedPrs] = useState<IssuePullRequestDto[]>([]);
+  const [connectedRepos, setConnectedRepos] = useState<GithubRepositoryDto[]>([]);
+  const [isLoadingRepos, setIsLoadingRepos] = useState(false);
+  const [isLinkPrOpen, setIsLinkPrOpen] = useState(false);
+  const [selectedRepoId, setSelectedRepoId] = useState<string>('');
+  const [repoPrs, setRepoPrs] = useState<GithubPullRequestDto[]>([]);
+  const [isLoadingPrs, setIsLoadingPrs] = useState(false);
+  const [selectedPrNumber, setSelectedPrNumber] = useState<string>('');
+  const [customPrNumber, setCustomPrNumber] = useState<string>('');
+  const [isLinkingPr, setIsLinkingPr] = useState(false);
+  const [linkPrError, setLinkPrError] = useState<string | null>(null);
+
   useEffect(() => {
     if (issue) {
       setTitle(issue.title);
@@ -87,12 +100,109 @@ export function IssueDetailModal({
           : ''
       );
       setAttachedLabels(issue.labels || []);
+      setAttachedPrs(issue.pullRequests || []);
       setError('');
       setLabelError(null);
+      setLinkPrError(null);
       setShowConfirmDelete(false);
       setIsLabelDropdownOpen(false);
+      setIsLinkPrOpen(false);
+      setSelectedPrNumber('');
+      setCustomPrNumber('');
     }
   }, [issue]);
+
+  useEffect(() => {
+    if (!isOpen || !projectId) return;
+    let mounted = true;
+    setIsLoadingRepos(true);
+    apiFetch<GithubRepositoryDto[]>(`/projects/${projectId}/github/repos`)
+      .then((repos) => {
+        if (mounted) {
+          setConnectedRepos(repos || []);
+          if (repos?.length > 0) {
+            setSelectedRepoId((prev) => (prev ? prev : repos[0].id));
+          }
+        }
+      })
+      .catch(() => {
+        if (mounted) setConnectedRepos([]);
+      })
+      .finally(() => {
+        if (mounted) setIsLoadingRepos(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [isOpen, projectId]);
+
+  useEffect(() => {
+    if (!isLinkPrOpen || !selectedRepoId || !projectId) return;
+    let mounted = true;
+    setIsLoadingPrs(true);
+    setRepoPrs([]);
+    apiFetch<GithubPullRequestDto[]>(
+      `/projects/${projectId}/github/repos/${selectedRepoId}/pulls`
+    )
+      .then((prs) => {
+        if (mounted) setRepoPrs(prs || []);
+      })
+      .catch(() => {
+        if (mounted) setRepoPrs([]);
+      })
+      .finally(() => {
+        if (mounted) setIsLoadingPrs(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [isLinkPrOpen, selectedRepoId, projectId]);
+
+  const handleLinkPullRequest = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!issue || !selectedRepoId || isLinkingPr) return;
+    const rawNum = selectedPrNumber || customPrNumber;
+    const prNum = parseInt(rawNum, 10);
+    if (!prNum || isNaN(prNum)) {
+      setLinkPrError('Please select or specify a valid PR number.');
+      return;
+    }
+
+    setLinkPrError(null);
+    setIsLinkingPr(true);
+    try {
+      const linked = await apiFetch<IssuePullRequestDto>(
+        `/projects/${projectId}/issues/${issue.id}/link-pr`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            repoId: selectedRepoId,
+            prNumber: prNum,
+          }),
+        }
+      );
+
+      const nextPrs = attachedPrs.some((p) => p.id === linked.id)
+        ? attachedPrs.map((p) => (p.id === linked.id ? linked : p))
+        : [...attachedPrs, linked];
+
+      setAttachedPrs(nextPrs);
+      onIssueUpdated({ ...issue, pullRequests: nextPrs });
+      setIsLinkPrOpen(false);
+      setSelectedPrNumber('');
+      setCustomPrNumber('');
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        setLinkPrError(err.message || 'Failed to link pull request.');
+      } else if (err instanceof Error) {
+        setLinkPrError(err.message);
+      } else {
+        setLinkPrError('Failed to link pull request.');
+      }
+    } finally {
+      setIsLinkingPr(false);
+    }
+  };
 
   const handleAttachLabel = async (labelToAttach: LabelDto) => {
     if (!issue || isLabelMutating) return;
@@ -464,6 +574,216 @@ export function IssueDetailModal({
               </div>
             )}
           </div>
+        </div>
+
+        {/* Linked Pull Requests Section */}
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-foreground/70 flex items-center gap-1.5">
+              <GitPullRequest className="h-3.5 w-3.5 text-primary" />
+              <span>Linked Pull Requests</span>
+            </span>
+
+            {canEdit && connectedRepos.length > 0 && !isLinkPrOpen && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLinkPrOpen(true);
+                  if (!selectedRepoId && connectedRepos.length > 0) {
+                    setSelectedRepoId(connectedRepos[0].id);
+                  }
+                }}
+                className="text-xs text-primary hover:underline flex items-center gap-1 font-medium cursor-pointer"
+              >
+                <Plus className="h-3 w-3" />
+                <span>Link PR</span>
+              </button>
+            )}
+          </div>
+
+          {linkPrError && <FormError message={linkPrError} />}
+
+          {/* PR Link Form Box */}
+          {isLinkPrOpen && (
+            <div className="p-3 rounded-lg border border-primary/30 bg-primary/[0.03] space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <GitPullRequest className="h-3.5 w-3.5 text-primary" />
+                  <span>Link GitHub Pull Request</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLinkPrOpen(false);
+                    setLinkPrError(null);
+                  }}
+                  className="text-foreground/50 hover:text-foreground p-0.5 rounded"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              <div className="space-y-2.5">
+                {connectedRepos.length > 1 && (
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-medium text-foreground/70">Repository</label>
+                    <select
+                      value={selectedRepoId}
+                      onChange={(e) => {
+                        setSelectedRepoId(e.target.value);
+                        setSelectedPrNumber('');
+                      }}
+                      disabled={isLinkingPr}
+                      className="flex h-8 w-full rounded border border-border bg-background px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                    >
+                      {connectedRepos.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.fullName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-foreground/70">
+                    {isLoadingPrs ? 'Loading open pull requests...' : 'Select Open Pull Request'}
+                  </label>
+                  {isLoadingPrs ? (
+                    <div className="flex items-center gap-2 py-2 text-xs text-foreground/60">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                      <span>Fetching pull requests from GitHub...</span>
+                    </div>
+                  ) : repoPrs.length > 0 ? (
+                    <select
+                      value={selectedPrNumber}
+                      onChange={(e) => {
+                        setSelectedPrNumber(e.target.value);
+                        setCustomPrNumber('');
+                      }}
+                      disabled={isLinkingPr}
+                      className="flex h-8 w-full rounded border border-border bg-background px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                    >
+                      <option value="">-- Select a pull request --</option>
+                      {repoPrs.map((pr) => (
+                        <option key={pr.number} value={pr.number}>
+                          #{pr.number} {pr.title} ({pr.author})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="text-xs text-foreground/50 italic py-1">
+                      No open pull requests found in this repository.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-foreground/70">
+                    Or enter PR number manually
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 42"
+                    value={customPrNumber}
+                    onChange={(e) => {
+                      setCustomPrNumber(e.target.value);
+                      setSelectedPrNumber('');
+                    }}
+                    disabled={isLinkingPr}
+                    className="h-8 text-xs"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setIsLinkPrOpen(false);
+                      setLinkPrError(null);
+                    }}
+                    disabled={isLinkingPr}
+                    className="h-7 px-2 text-xs"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => handleLinkPullRequest()}
+                    disabled={isLinkingPr || (!selectedPrNumber && !customPrNumber)}
+                    className="h-7 px-3 text-xs"
+                  >
+                    {isLinkingPr ? 'Linking...' : 'Link PR'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Linked PR list */}
+          {attachedPrs.length > 0 ? (
+            <div className="space-y-1.5">
+              {attachedPrs.map((pr) => {
+                const status = pr.prStatus?.toLowerCase() || 'open';
+                let statusBadgeClasses = 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60';
+                if (status === 'merged') {
+                  statusBadgeClasses = 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200 dark:border-purple-800/60';
+                } else if (status === 'closed') {
+                  statusBadgeClasses = 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700';
+                }
+
+                return (
+                  <div
+                    key={pr.id}
+                    className="flex items-center justify-between p-2 rounded-md border border-border bg-foreground/[0.02] text-xs hover:bg-foreground/[0.04] transition-colors"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <GitPullRequest className="h-4 w-4 text-primary shrink-0" />
+                      <span className="font-semibold text-foreground">
+                        #{pr.prNumber}
+                      </span>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium uppercase border ${statusBadgeClasses}`}>
+                        {status}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      {pr.linkedAt && (
+                        <span className="text-[11px] text-foreground/50">
+                          Linked {new Date(pr.linkedAt).toLocaleDateString()}
+                        </span>
+                      )}
+                      <a
+                        href={pr.prUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                        title="Open in GitHub"
+                      >
+                        <span>View</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-xs text-foreground/50 italic py-1">
+              {connectedRepos.length === 0 && !isLoadingRepos ? (
+                <span>
+                  No pull requests linked.{' '}
+                  {isProjectAdmin && (
+                    <span>Connect a repository in Project Settings to link PRs.</span>
+                  )}
+                </span>
+              ) : (
+                <span>No pull requests linked to this issue.</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Metadata Footer */}

@@ -8,15 +8,17 @@ type IssueWithRelations = Prisma.IssueGetPayload<{
     creator: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } };
     assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } };
     labels: { include: { label: true } };
+    pullRequests: true;
   }
 }>;
 
 function mapIssue(issue: IssueWithRelations): IssueDto {
-  const { labels, assignee, ...rest } = issue;
+  const { labels, assignee, pullRequests, ...rest } = issue;
   return {
     ...rest,
     assignee: assignee ?? undefined,
-    labels: labels.map(il => il.label)
+    labels: labels.map(il => il.label),
+    pullRequests: pullRequests ?? [],
   };
 }
 
@@ -26,7 +28,9 @@ export class IssuesRepository {
       data,
       include: {
         creator: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
-        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } }, labels: { include: { label: true } }
+        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
+        labels: { include: { label: true } },
+        pullRequests: true,
       }
     }); return mapIssue(issue);
   }
@@ -36,7 +40,9 @@ export class IssuesRepository {
       where: { id },
       include: {
         creator: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
-        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } }, labels: { include: { label: true } }
+        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
+        labels: { include: { label: true } },
+        pullRequests: true,
       }
     }); return issue ? mapIssue(issue) : null;
   }
@@ -56,7 +62,9 @@ export class IssuesRepository {
       ],
       include: {
         creator: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
-        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } }, labels: { include: { label: true } }
+        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
+        labels: { include: { label: true } },
+        pullRequests: true,
       }
     }); return issues.map(mapIssue);
   }
@@ -67,7 +75,9 @@ export class IssuesRepository {
       data,
       include: {
         creator: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
-        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } }, labels: { include: { label: true } }
+        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
+        labels: { include: { label: true } },
+        pullRequests: true,
       }
     }); return mapIssue(issue);
   }

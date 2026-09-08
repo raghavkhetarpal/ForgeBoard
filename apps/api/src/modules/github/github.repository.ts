@@ -34,10 +34,10 @@ export class GithubRepository {
     return project?.workspaceId || null;
   }
 
-  async getIntegrationByProjectId(projectId: string): Promise<{ id: string, accessToken: string } | null> {
+  async getIntegrationByProjectId(projectId: string): Promise<{ id: string; accessToken: string; workspaceId: string } | null> {
     return prisma.githubIntegration.findUnique({
       where: { projectId },
-      select: { id: true, accessToken: true },
+      select: { id: true, accessToken: true, workspaceId: true },
     });
   }
 

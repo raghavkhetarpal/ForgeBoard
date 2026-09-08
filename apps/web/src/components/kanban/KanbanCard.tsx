@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { IssueDto, IssuePriority } from '@forgeboard/types';
-import { Clock, AlertTriangle, ArrowUp, ArrowRight, ArrowDown } from 'lucide-react';
+import { Clock, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, GitPullRequest } from 'lucide-react';
 
 interface KanbanCardProps {
   issue: IssueDto;
@@ -97,6 +97,29 @@ export function KanbanCard({ issue, index, onClick, onDragStart }: KanbanCardPro
               +{issue.labels.length - 3}
             </span>
           )}
+        </div>
+      )}
+
+      {issue.pullRequests && issue.pullRequests.length > 0 && (
+        <div className="flex flex-wrap gap-1 items-center pt-0.5">
+          {issue.pullRequests.map((pr) => (
+            <span
+              key={pr.id}
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                pr.prStatus === 'merged'
+                  ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800'
+                  : pr.prStatus === 'closed'
+                  ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+              }`}
+            >
+              <GitPullRequest className="h-3 w-3 shrink-0" />
+              <span>#{pr.prNumber}</span>
+              <span className="capitalize text-[9px] opacity-75">
+                ({pr.prStatus})
+              </span>
+            </span>
+          ))}
         </div>
       )}
 

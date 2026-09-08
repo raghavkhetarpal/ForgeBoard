@@ -68,13 +68,6 @@ router.post('/github', verifyGithubSignature, async (req: Request, res: Response
         return;
       }
       throw err;
-
-      // If P2002 (Unique constraint failed), this delivery was already processed
-      if (err.code === 'P2002') {
-        res.status(200).send('Already processed');
-        return;
-      }
-      throw err;
     }
 
     // We only care about pull_request merged events for now
