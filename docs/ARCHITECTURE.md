@@ -180,6 +180,11 @@ Rules:
 
 **Connection flow:** OAuth app (not GitHub App, unless scope creep demands installation-based auth later) → store encrypted access token per workspace/project integration → repository selection via GitHub REST API.
 
+> [!WARNING]
+> **Token Encryption Requirement:** GitHub access tokens are encrypted at rest using AES-256-GCM. The encryption utility strictly requires a 32-byte hex string in the `ENCRYPTION_KEY` environment variable. While the code gracefully falls back to a deterministic, insecure zeroed buffer (`000000...`) when the key is missing in `development` or `test` environments to keep CI green, **it will throw a hard error if missing in `production`**.
+> 
+> **Deployment Risk:** It is a common occurrence for CI/CD pipelines, Docker deployments, or hosting platforms (like Render/Railway) to forget to inject `NODE_ENV=production`. If a live environment deploys without `NODE_ENV=production` AND misses the `ENCRYPTION_KEY`, the application will silently fall back to the insecure zeroed buffer, meaning real users' GitHub tokens will be stored with useless encryption. **Always explicitly define both `NODE_ENV=production` and `ENCRYPTION_KEY` in every live deployed environment.**
+
 **Webhook flow:**
 
 ```
