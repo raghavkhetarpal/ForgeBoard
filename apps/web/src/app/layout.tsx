@@ -1,9 +1,13 @@
+import './globals.css';
+import { AuthProvider } from '@/context/AuthContext';
+import { Inter } from 'next/font/google';
 import type { Metadata } from 'next';
-import React from 'react';
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'ForgeBoard',
-  description: 'Multi-tenant project management platform with GitHub integration and real-time collaboration',
+  description: 'The Ultimate Issue Tracker',
 };
 
 export default function RootLayout({
@@ -13,7 +17,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={inter.className}>
+        <AuthProvider>
+          <div className="min-h-screen flex flex-col">
+            {children}
+          </div>
+        </AuthProvider>
+      </body>
     </html>
   );
 }
