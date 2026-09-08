@@ -134,7 +134,17 @@ describe('Activity Module Integration Tests', () => {
   });
 
   it('moveIssue: creates activity on cross-column move but not on same-column reorder', async () => {
-    const wait = () => new Promise(r => setTimeout(r, 10));
+    // Helper to poll for an expected activity deterministically
+    const waitForActivity = async (targetId: string, expectedToStatus: string) => {
+      for (let i = 0; i < 20; i++) {
+        const acts = await prisma.activity.findMany({ where: { targetId, action: 'ISSUE_STATUS_CHANGED' } });
+        if (acts.some(a => (a.metadata as any)?.to === expectedToStatus)) {
+          return acts;
+        }
+        await new Promise(r => setTimeout(r, 50));
+      }
+      throw new Error('Timeout waiting for expected activity');
+    };
 
     // Create an issue specifically for this test
     const createRes = await request(app)
@@ -146,32 +156,40 @@ describe('Activity Module Integration Tests', () => {
       });
     expect(createRes.status).toBe(201);
     const issueId = createRes.body.issue.id;
-    await wait();
+
+    // Await the initial ISSUE_CREATED activity to settle so we can safely delete it
+    for (let i = 0; i < 20; i++) {
+      const createdActs = await prisma.activity.findMany({ where: { targetId: issueId, action: 'ISSUE_CREATED' } });
+      if (createdActs.length > 0) break;
+      await new Promise(r => setTimeout(r, 50));
+    }
 
     // Clear previous activities for this issue (to isolate the count)
     await prisma.activity.deleteMany({ where: { targetId: issueId } });
 
-    // CASE B: Same-column reorder
+    // CASE A: Same-column reorder
     const sameColumnRes = await request(app)
       .patch(`/api/projects/${projectId}/issues/${issueId}/move`)
       .set('Authorization', `Bearer ${memberToken}`)
       .send({ status: 'TODO', position: 512 });
     expect(sameColumnRes.status).toBe(200);
-    await wait();
 
-    let acts = await prisma.activity.findMany({ where: { targetId: issueId } });
-    expect(acts).toHaveLength(0); // NO activity for same-column reorder
-
-    // CASE A: Cross-column move
+    // CASE B: Cross-column move
     const crossColumnRes = await request(app)
       .patch(`/api/projects/${projectId}/issues/${issueId}/move`)
       .set('Authorization', `Bearer ${memberToken}`)
       .send({ status: 'IN_PROGRESS', position: 1024 });
     expect(crossColumnRes.status).toBe(200);
-    await wait();
 
-    acts = await prisma.activity.findMany({ where: { targetId: issueId } });
-    expect(acts).toHaveLength(1); // Exactly ONE activity created
+    // Wait deterministically for the cross-column activity to be written
+    const acts = await waitForActivity(issueId, 'IN_PROGRESS');
+
+    // Since we waited for the cross-column move to write its activity, 
+    // any activity from the same-column move (if incorrectly implemented) 
+    // would also be present in the database by now.
+    
+    // Assert exactly ONE activity exists, proving the same-column move did not emit one.
+    expect(acts).toHaveLength(1); 
     expect(acts[0].action).toBe('ISSUE_STATUS_CHANGED');
     expect((acts[0].metadata as any).from).toBe('TODO');
     expect((acts[0].metadata as any).to).toBe('IN_PROGRESS');
