@@ -2,6 +2,7 @@ import { issuesRepository } from './issues.repository';
 import { AppError } from '../../infrastructure/errors';
 import { IssueDto } from '@forgeboard/types';
 import { Prisma } from '@prisma/client';
+import { getSocketServer } from '../../infrastructure/socket';
 
 export class IssuesService {
   async createIssue(projectId: string, workspaceId: string, creatorId: string, data: Omit<Prisma.IssueUncheckedCreateInput, 'workspaceId' | 'projectId' | 'creatorId'>): Promise<IssueDto> {
@@ -89,7 +90,16 @@ export class IssuesService {
       newPosition = (prev.position + next.position) / 2;
     }
 
-    return issuesRepository.update(issueId, { status: status as Prisma.EnumIssueStatusFieldUpdateOperationsInput, position: newPosition });
+    const updatedIssue = await issuesRepository.update(issueId, { status: status as Prisma.EnumIssueStatusFieldUpdateOperationsInput, position: newPosition });
+    
+    // Broadcast the update to all clients in the project room
+    try {
+      getSocketServer().to(`project:${projectId}`).emit('issue:updated', { issue: updatedIssue });
+    } catch (e) {
+      console.error('Failed to emit issue:updated event', e);
+    }
+    
+    return updatedIssue;
   }
 
 }

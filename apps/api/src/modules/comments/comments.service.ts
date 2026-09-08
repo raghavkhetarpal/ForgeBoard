@@ -5,6 +5,7 @@ import prisma from '../../infrastructure/prisma';
 import { extractMentions } from './mentions.util';
 import { notificationsService } from '../notifications/notifications.service';
 import { issuesRepository } from '../issues/issues.repository';
+import { getSocketServer } from '../../infrastructure/socket';
 
 export class CommentsService {
 
@@ -44,6 +45,14 @@ export class CommentsService {
       content,
     });
     await this.processMentions(projectId, comment.id, authorId, content);
+    
+    // Broadcast the new comment to the project room
+    try {
+      getSocketServer().to(`project:${projectId}`).emit('comment:created', { comment });
+    } catch (e) {
+      console.error('Failed to emit comment:created event', e);
+    }
+    
     return comment;
 
   }

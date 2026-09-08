@@ -88,6 +88,9 @@ export function initSocketServer(httpServer: HttpServer) {
   io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id} (User: ${socket.data.user.id})`);
 
+    // Automatically join the personal user room
+    socket.join(`user:${socket.data.user.id}`);
+
     socket.on('join:project', async (payload, callback) => {
       const { projectId } = payload || {};
       if (!projectId) {
