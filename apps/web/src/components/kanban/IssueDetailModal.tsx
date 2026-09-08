@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { FormError } from '@/components/ui/FormError';
 import { apiFetch, ApiError } from '@/lib/api';
-import { IssueDto, IssueStatus, IssuePriority } from '@forgeboard/types';
+import { IssueDto, IssueStatus, IssuePriority, WorkspaceMemberDto } from '@forgeboard/types';
+import { CommentsSection } from '@/components/comments/CommentsSection';
 import { Trash2, Clock, Calendar, User as UserIcon } from 'lucide-react';
 
 interface IssueDetailModalProps {
@@ -17,6 +18,9 @@ interface IssueDetailModalProps {
   onIssueUpdated: (issue: IssueDto) => void;
   onIssueDeleted: (issueId: string) => void;
   canEdit?: boolean;
+  members?: WorkspaceMemberDto[];
+  currentUserId?: string;
+  isProjectAdmin?: boolean;
 }
 
 interface UpdateIssueResponse {
@@ -47,6 +51,9 @@ export function IssueDetailModal({
   onIssueUpdated,
   onIssueDeleted,
   canEdit = true,
+  members = [],
+  currentUserId,
+  isProjectAdmin = false,
 }: IssueDetailModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -167,7 +174,7 @@ export function IssueDetailModal({
       onClose={onClose}
       title="Issue Details"
       description={`ID: ${issue.id}`}
-      className="max-w-xl"
+      className="max-w-2xl max-h-[90vh] overflow-y-auto"
     >
       <FormError message={error} />
 
@@ -339,6 +346,15 @@ export function IssueDetailModal({
           </div>
         </div>
       </form>
+
+      <CommentsSection
+        projectId={projectId}
+        issueId={issue.id}
+        members={members}
+        currentUserId={currentUserId}
+        canComment={Boolean(currentUserId)}
+        isProjectAdmin={isProjectAdmin}
+      />
     </Modal>
   );
 }

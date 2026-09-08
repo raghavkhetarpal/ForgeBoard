@@ -369,7 +369,15 @@ export default function ProjectPage() {
             )}
 
             {activeTab === 'board' && (
-              <KanbanBoard projectId={projectId} />
+              <KanbanBoard
+                projectId={projectId}
+                members={members}
+                currentUserId={user?.id}
+                isProjectAdmin={
+                  members.find((m) => m.userId === user?.id)?.role === 'OWNER' ||
+                  members.find((m) => m.userId === user?.id)?.role === 'ADMIN'
+                }
+              />
             )}
 
             {activeTab === 'activity' && (

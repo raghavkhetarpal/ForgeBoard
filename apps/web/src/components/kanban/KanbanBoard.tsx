@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
-import { IssueDto, IssueStatus } from '@forgeboard/types';
+import { IssueDto, IssueStatus, WorkspaceMemberDto } from '@forgeboard/types';
 import { KanbanColumn } from './KanbanColumn';
 import { CreateIssueModal } from './CreateIssueModal';
 import { IssueDetailModal } from './IssueDetailModal';
@@ -20,6 +20,9 @@ import {
 interface KanbanBoardProps {
   projectId: string;
   canMutateIssues?: boolean;
+  members?: WorkspaceMemberDto[];
+  currentUserId?: string;
+  isProjectAdmin?: boolean;
 }
 
 interface ListIssuesResponse {
@@ -42,6 +45,9 @@ const COLUMNS: { status: IssueStatus; label: string }[] = [
 export function KanbanBoard({
   projectId,
   canMutateIssues = true,
+  members = [],
+  currentUserId,
+  isProjectAdmin = false,
 }: KanbanBoardProps) {
   const [issues, setIssues] = useState<IssueDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -374,6 +380,9 @@ export function KanbanBoard({
         onIssueUpdated={handleIssueUpdated}
         onIssueDeleted={handleIssueDeleted}
         canEdit={canMutateIssues}
+        members={members}
+        currentUserId={currentUserId}
+        isProjectAdmin={isProjectAdmin}
       />
     </div>
   );

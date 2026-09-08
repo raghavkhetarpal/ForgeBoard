@@ -200,6 +200,14 @@ export interface CommentDto {
   author?: UserDto;
 }
 
+export interface CreateCommentInput {
+  content: string;
+}
+
+export interface UpdateCommentInput {
+  content: string;
+}
+
 export type NotificationType = 'MENTION' | 'ASSIGNMENT' | 'COMMENT';
 
 export interface NotificationDto {
