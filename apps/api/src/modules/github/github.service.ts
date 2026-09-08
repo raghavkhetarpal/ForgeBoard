@@ -114,6 +114,29 @@ export class GithubService {
     return githubRepository.getRepositories(projectId);
   }
 
+  
+  async linkPullRequest(projectId: string, issueId: string, repoId: string, prNumber: number) {
+    const integration = await githubRepository.getIntegrationByProjectId(projectId);
+    if (!integration) throw new AppError('GitHub is not connected to this project', 400, 'BAD_REQUEST');
+
+    const repo = await githubRepository.getRepositoryById(projectId, repoId);
+    if (!repo || repo.projectId !== projectId) throw new AppError('Repository not found in this project', 404, 'NOT_FOUND');
+
+    // Fetch PR details from GitHub
+    const decryptedToken = decryptString(integration.accessToken);
+    const client = new GithubClient(decryptedToken);
+    
+    // We just want to get one PR
+    const pr = await client.getPullRequest(repo.owner, repo.name, prNumber);
+    
+    if (!pr) {
+      throw new AppError('Pull request not found or not open', 404, 'NOT_FOUND');
+    }
+
+    return githubRepository.createIssuePullRequest(issueId, repoId, prNumber, pr.status, pr.url);
+  }
+
+
   async listPullRequests(projectId: string, repoId: string) {
     const integration = await githubRepository.getIntegrationByProjectId(projectId);
     if (!integration) {

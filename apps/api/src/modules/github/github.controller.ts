@@ -3,6 +3,11 @@ import { githubService } from './github.service';
 import z from 'zod';
 import { AppError } from '../../infrastructure/errors';
 
+const linkPrSchema = z.object({
+  repoId: z.string(),
+  prNumber: z.number().int().positive()
+});
+
 const connectRepoSchema = z.object({
   owner: z.string().min(1),
   repo: z.string().min(1),
@@ -67,6 +72,18 @@ export class GithubController {
       const { owner, repo } = connectRepoSchema.parse(req.body);
       const connected = await githubService.connectRepository(projectId, owner, repo);
       res.status(201).json(connected);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  linkPullRequest = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { projectId, issueId } = req.params;
+      const { repoId, prNumber } = linkPrSchema.parse(req.body);
+      
+      const link = await githubService.linkPullRequest(projectId, issueId, repoId, prNumber);
+      res.status(201).json(link);
     } catch (error) {
       next(error);
     }

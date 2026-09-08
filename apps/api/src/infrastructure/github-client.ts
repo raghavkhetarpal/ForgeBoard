@@ -72,6 +72,20 @@ export class GithubClient {
     return this.request<GithubApiRepo>(`/repos/${owner}/${repo}`);
   }
 
+  
+  async getPullRequest(owner: string, repo: string, prNumber: number): Promise<GithubPullRequestDto> {
+    const pr = await this.request<GithubApiPullRequest>(`/repos/${owner}/${repo}/pulls/${prNumber}`);
+    return {
+      number: pr.number,
+      title: pr.title,
+      author: pr.user.login,
+      status: pr.state === 'open' ? 'open' : pr.merged_at ? 'merged' : 'closed',
+      url: pr.html_url,
+      createdAt: new Date(pr.created_at),
+      updatedAt: new Date(pr.updated_at),
+    };
+  }
+
   async listPullRequests(owner: string, repo: string): Promise<GithubPullRequestDto[]> {
     const prs = await this.request<GithubApiPullRequest[]>(`/repos/${owner}/${repo}/pulls?state=open&sort=updated&direction=desc&per_page=50`);
     

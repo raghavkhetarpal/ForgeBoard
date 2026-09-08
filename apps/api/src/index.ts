@@ -23,7 +23,11 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json());
+app.use(express.json({
+  verify: (req, _res, buf) => {
+    (req as any).rawBody = buf;
+  }
+}));
 app.use(cookieParser(sessionSecret));
 
 // Health check
@@ -34,6 +38,7 @@ app.get('/health', (_req: Request, res: Response) => {
 import issuesRouter from './modules/issues/issues.routes';
 import notificationsRouter from './modules/notifications/notifications.routes';
 import labelsRoutes from './modules/labels/labels.routes';
+import webhooksRoutes from './modules/webhooks/webhooks.routes';
 import githubRoutes from './modules/github/github.routes';
 
 // Mount modules
@@ -45,6 +50,7 @@ app.use('/api/projects/:projectId/issues', issuesRouter);
 app.use('/api/github', githubRoutes);
 app.use('/api/projects/:projectId/labels', labelsRoutes);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/webhooks', webhooksRoutes);
 
 // Global error handler envelope per docs/ARCHITECTURE.md §8
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

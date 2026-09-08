@@ -4,6 +4,7 @@ import { requireProjectRole } from '../../middleware/rbac.middleware';
 import { issuesController } from './issues.controller';
 import { labelsController } from '../labels/labels.controller';
 import { commentsController } from '../comments/comments.controller';
+import { githubController } from '../github/github.controller';
 
 const router = Router({ mergeParams: true });
 
@@ -21,6 +22,9 @@ router.delete('/:issueId', requireProjectRole('MEMBER'), issuesController.delete
 
 router.post('/:issueId/labels', requireProjectRole('MEMBER'), labelsController.attachLabel);
 router.delete('/:issueId/labels/:labelId', requireProjectRole('MEMBER'), labelsController.removeLabel);
+
+// GitHub
+router.post('/:issueId/link-pr', requireProjectRole('MEMBER'), githubController.linkPullRequest);
 
 // Comments
 router.post('/:issueId/comments', requireProjectRole('MEMBER'), commentsController.createComment);
