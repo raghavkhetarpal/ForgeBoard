@@ -113,6 +113,18 @@ export class IssuesService {
     }
 
     const updatedIssue = await issuesRepository.update(issueId, { status: status as Prisma.EnumIssueStatusFieldUpdateOperationsInput, position: newPosition });
+
+    if (status && status !== issue.status) {
+      void activityService.logActivity({
+        projectId,
+        workspaceId: issue.workspaceId,
+        actorId,
+        action: 'ISSUE_STATUS_CHANGED',
+        targetType: 'ISSUE',
+        targetId: issue.id,
+        metadata: { from: issue.status, to: updatedIssue.status }
+      });
+    }
     
     // Broadcast the update to all clients in the project room
     try {
