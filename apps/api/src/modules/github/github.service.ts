@@ -5,10 +5,13 @@ import { encryptString, decryptString } from '../../infrastructure/encryption';
 import { signOAuthState, verifyOAuthState } from './github.utils';
 
 export class GithubService {
-  getConnectUrl(projectId: string, userId: string, workspaceId: string): string {
+  async getConnectUrl(projectId: string, userId: string): Promise<string> {
     const clientId = process.env.GITHUB_CLIENT_ID;
     if (!clientId) throw new AppError('GitHub integration is not configured (missing Client ID)', 500, 'SERVER_ERROR');
     
+    const workspaceId = await githubRepository.getWorkspaceIdForProject(projectId);
+    if (!workspaceId) throw new AppError('Project not found', 404, 'NOT_FOUND');
+
     const state = signOAuthState(projectId, userId, workspaceId);
     
     const params = new URLSearchParams({

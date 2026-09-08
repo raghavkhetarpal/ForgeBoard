@@ -26,6 +26,14 @@ export class GithubRepository {
     });
   }
 
+  async getWorkspaceIdForProject(projectId: string): Promise<string | null> {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { workspaceId: true },
+    });
+    return project?.workspaceId || null;
+  }
+
   async getIntegrationByProjectId(projectId: string): Promise<{ id: string, accessToken: string } | null> {
     return prisma.githubIntegration.findUnique({
       where: { projectId },

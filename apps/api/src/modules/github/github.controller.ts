@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { githubService } from './github.service';
 import z from 'zod';
-import prisma from '../../infrastructure/prisma';
 import { AppError } from '../../infrastructure/errors';
 
 const connectRepoSchema = z.object({
@@ -14,10 +13,8 @@ export class GithubController {
     try {
       const { projectId } = req.params;
       const user = req.user!;
-      const project = await prisma.project.findUnique({ where: { id: projectId }});
-      const workspaceId = project!.workspaceId;
       
-      const url = githubService.getConnectUrl(projectId, user.id, workspaceId);
+      const url = await githubService.getConnectUrl(projectId, user.id);
       res.json({ url });
     } catch (error) {
       next(error);
