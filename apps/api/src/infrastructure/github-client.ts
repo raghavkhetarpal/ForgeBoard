@@ -1,6 +1,33 @@
 import { AppError } from './errors';
 import { GithubPullRequestDto } from '@forgeboard/types';
 
+export interface GithubApiUser {
+  login: string;
+  id: number;
+}
+
+export interface GithubApiRepo {
+  id: number;
+  owner: {
+    login: string;
+  };
+  name: string;
+  full_name: string;
+}
+
+export interface GithubApiPullRequest {
+  number: number;
+  title: string;
+  user: {
+    login: string;
+  };
+  state: string;
+  merged_at: string | null;
+  html_url: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export class GithubClient {
   private accessToken: string;
 
@@ -8,7 +35,7 @@ export class GithubClient {
     this.accessToken = accessToken;
   }
 
-  private async request(path: string, options?: RequestInit) {
+  private async request<T>(path: string, options?: RequestInit): Promise<T> {
     const url = `https://api.github.com${path}`;
     const headers = {
       Authorization: `Bearer ${this.accessToken}`,
@@ -30,25 +57,25 @@ export class GithubClient {
       throw new AppError(`GitHub API Error: ${message}`, res.status, 'GITHUB_API_ERROR');
     }
     
-    return res.json();
+    return res.json() as Promise<T>;
   }
 
-  async getAuthenticatedUser(): Promise<{ login: string; id: number }> {
-    return this.request('/user') as Promise<{ login: string; id: number }>;
+  async getAuthenticatedUser(): Promise<GithubApiUser> {
+    return this.request<GithubApiUser>('/user');
   }
 
-  async listUserRepositories(): Promise<{ id: number; owner: { login: string }; name: string; full_name: string }[]> {
-    return this.request('/user/repos?sort=updated&per_page=100') as Promise<{ id: number; owner: { login: string }; name: string; full_name: string }[]>;
+  async listUserRepositories(): Promise<GithubApiRepo[]> {
+    return this.request<GithubApiRepo[]>('/user/repos?sort=updated&per_page=100');
   }
 
-  async getRepository(owner: string, repo: string): Promise<{ id: number; owner: { login: string }; name: string; full_name: string }> {
-    return this.request(`/repos/${owner}/${repo}`) as Promise<{ id: number; owner: { login: string }; name: string; full_name: string }>;
+  async getRepository(owner: string, repo: string): Promise<GithubApiRepo> {
+    return this.request<GithubApiRepo>(`/repos/${owner}/${repo}`);
   }
 
   async listPullRequests(owner: string, repo: string): Promise<GithubPullRequestDto[]> {
-    const prs = await this.request(`/repos/${owner}/${repo}/pulls?state=open&sort=updated&direction=desc&per_page=50`) as any[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const prs = await this.request<GithubApiPullRequest[]>(`/repos/${owner}/${repo}/pulls?state=open&sort=updated&direction=desc&per_page=50`);
     
-    return prs.map((pr: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+    return prs.map((pr: GithubApiPullRequest) => ({
       number: pr.number,
       title: pr.title,
       author: pr.user.login,
