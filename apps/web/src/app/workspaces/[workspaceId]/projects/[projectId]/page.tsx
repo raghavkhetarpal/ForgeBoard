@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { apiFetch, ApiError } from '@/lib/api';
 import { ProjectDto, WorkspaceDto, WorkspaceMemberDto } from '@forgeboard/types';
 import { KanbanBoard } from '@/components/kanban/KanbanBoard';
+import { ProjectActivityFeed } from '@/components/activity/ProjectActivityFeed';
 import {
   FolderKanban,
   AlertCircle,
@@ -384,19 +385,7 @@ export default function ProjectPage() {
             )}
 
             {activeTab === 'activity' && (
-              <div className="py-16 px-4 rounded-xl border border-dashed border-border bg-background/50 flex flex-col items-center justify-center text-center space-y-4">
-                <div className="p-3 rounded-full bg-primary/10 text-primary">
-                  <ActivityIcon className="h-8 w-8" />
-                </div>
-                <div className="max-w-md space-y-1">
-                  <h3 className="text-base font-semibold text-foreground">
-                    Project Activity Feed
-                  </h3>
-                  <p className="text-sm text-foreground/60">
-                    The audit trail timeline of status changes, comments, and pull requests will be connected in a subsequent phase.
-                  </p>
-                </div>
-              </div>
+              <ProjectActivityFeed projectId={projectId} />
             )}
 
             {activeTab === 'settings' && (

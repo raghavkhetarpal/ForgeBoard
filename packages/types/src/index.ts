@@ -231,6 +231,26 @@ export interface NotificationDto {
   createdAt: Date | string;
 }
 
+export interface ActivityActorDto {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl: string | null;
+}
+
+export interface ActivityDto {
+  id: string;
+  projectId: string;
+  workspaceId: string;
+  actorId: string | null;
+  action: string;
+  targetType: string;
+  targetId: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: Date | string;
+  actor?: ActivityActorDto | null;
+}
+
 export interface GithubIntegrationDto {
   id: string;
   projectId: string;

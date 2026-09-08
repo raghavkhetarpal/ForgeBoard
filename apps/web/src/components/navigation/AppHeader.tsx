@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
+import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 import { ChevronRight, LogOut } from 'lucide-react';
 
 interface BreadcrumbItem {
@@ -64,6 +65,8 @@ export function AppHeader({ breadcrumbs = [], actions }: AppHeaderProps) {
         {/* Right: Actions and User Controls */}
         <div className="flex items-center space-x-3 shrink-0">
           {actions}
+
+          {user && <NotificationDropdown />}
 
           {user && (
             <div className="flex items-center space-x-3 pl-2 border-l border-border">
