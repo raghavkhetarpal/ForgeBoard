@@ -55,6 +55,7 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
     throw new ApiError(message, response.status, parsed.error);
   }
 
-  // The backend wraps successful responses in a { data: ... } envelope.
-  return parsed.data as T;
+  // The backend wraps most responses in a { data: ... } envelope,
+  // while some controllers return top-level objects (e.g. { projects: [...] }).
+  return (parsed.data !== undefined ? parsed.data : parsed) as T;
 }

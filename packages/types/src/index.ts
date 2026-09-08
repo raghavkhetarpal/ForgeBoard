@@ -47,6 +47,12 @@ export interface WorkspaceMemberDto {
   workspace?: WorkspaceDto;
 }
 
+// User Workspace DTO (returned by GET /api/workspaces for authenticated user)
+export interface UserWorkspaceDto extends WorkspaceDto {
+  role: WorkspaceRole;
+  joinedAt: Date | string;
+}
+
 // Session Data
 export interface SessionData {
   sessionId: string;
