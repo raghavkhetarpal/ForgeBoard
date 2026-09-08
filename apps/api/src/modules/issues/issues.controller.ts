@@ -43,7 +43,7 @@ export class IssuesController {
     try {
       const { projectId, issueId } = req.params;
       const data = updateIssueSchema.parse(req.body);
-      const issue = await issuesService.updateIssue(projectId, issueId, data);
+      const issue = await issuesService.updateIssue(projectId, issueId, data, req.user!.id);
       res.status(200).json({ issue });
     } catch (error) {
       next(error);
@@ -64,7 +64,7 @@ export class IssuesController {
     try {
       const { projectId, issueId } = req.params;
       const { status, position } = moveIssueSchema.parse(req.body);
-      const issue = await issuesService.moveIssue(projectId, issueId, status, position);
+      const issue = await issuesService.moveIssue(projectId, issueId, status, position, req.user!.id);
       res.status(200).json({ issue });
     } catch (error) {
       next(error);

@@ -1,5 +1,6 @@
 import { commentsRepository } from './comments.repository';
 import { AppError } from '../../infrastructure/errors';
+import { activityService } from '../activity/activity.service';
 import { CommentDto } from '@forgeboard/types';
 import prisma from '../../infrastructure/prisma';
 import { extractMentions } from './mentions.util';
@@ -45,6 +46,15 @@ export class CommentsService {
       content,
     });
     await this.processMentions(projectId, comment.id, authorId, content);
+    
+    void activityService.logActivity({
+      projectId,
+      workspaceId: issue.workspaceId,
+      actorId: authorId,
+      action: 'COMMENT_CREATED',
+      targetType: 'COMMENT',
+      targetId: comment.id
+    });
     
     // Broadcast the new comment to the project room
     try {

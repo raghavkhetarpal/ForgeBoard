@@ -1,5 +1,6 @@
 import { githubRepository } from './github.repository';
 import { AppError } from '../../infrastructure/errors';
+import { activityService } from '../activity/activity.service';
 import { GithubClient } from '../../infrastructure/github-client';
 import { encryptString, decryptString } from '../../infrastructure/encryption';
 import { signOAuthState, verifyOAuthState } from './github.utils';
@@ -115,7 +116,7 @@ export class GithubService {
   }
 
   
-  async linkPullRequest(projectId: string, issueId: string, repoId: string, prNumber: number) {
+  async linkPullRequest(projectId: string, issueId: string, repoId: string, prNumber: number, actorId: string) {
     const integration = await githubRepository.getIntegrationByProjectId(projectId);
     if (!integration) throw new AppError('GitHub is not connected to this project', 400, 'BAD_REQUEST');
 
@@ -133,7 +134,19 @@ export class GithubService {
       throw new AppError('Pull request not found or not open', 404, 'NOT_FOUND');
     }
 
-    return githubRepository.createIssuePullRequest(issueId, repoId, prNumber, pr.status, pr.url);
+    const link = await githubRepository.createIssuePullRequest(issueId, repoId, prNumber, pr.status, pr.url);
+    
+    void activityService.logActivity({
+      projectId,
+      workspaceId: integration.workspaceId,
+      actorId,
+      action: 'PR_LINKED',
+      targetType: 'GITHUB_PR',
+      targetId: link.id,
+      metadata: { repo: repo.fullName, prNumber, prUrl: pr.url }
+    });
+    
+    return link;
   }
 
 

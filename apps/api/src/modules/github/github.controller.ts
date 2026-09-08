@@ -82,7 +82,8 @@ export class GithubController {
       const { projectId, issueId } = req.params;
       const { repoId, prNumber } = linkPrSchema.parse(req.body);
       
-      const link = await githubService.linkPullRequest(projectId, issueId, repoId, prNumber);
+      const user = req.user!;
+      const link = await githubService.linkPullRequest(projectId, issueId, repoId, prNumber, user.id);
       res.status(201).json(link);
     } catch (error) {
       next(error);

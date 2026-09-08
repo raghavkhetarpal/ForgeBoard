@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import prisma from '../../infrastructure/prisma';
 import { AppError } from '../../infrastructure/errors';
 import { getSocketServer } from '../../infrastructure/socket';
+import { activityService } from '../activity/activity.service';
 
 const router = Router();
 
@@ -129,7 +130,20 @@ router.post('/github', verifyGithubSignature, async (req: Request, res: Response
       data: { status: 'DONE' }
     });
 
-    // We don't have a generic activity log module yet, so we skip writing an activity record.
+    // Log activity for webhook auto-close
+    void activityService.logActivity({
+      projectId: updatedIssue.projectId,
+      workspaceId: updatedIssue.workspaceId,
+      actorId: null,
+      action: 'PR_MERGED_AUTO_CLOSED',
+      targetType: 'ISSUE',
+      targetId: updatedIssue.id,
+      metadata: { 
+        message: `PR #${prNumber} merged, issue auto-closed`,
+        prNumber,
+        repoId
+      }
+    });
 
     // Emit real-time socket event
     const io = getSocketServer();

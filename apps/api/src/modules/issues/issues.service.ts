@@ -1,5 +1,6 @@
 import { issuesRepository } from './issues.repository';
 import { AppError } from '../../infrastructure/errors';
+import { activityService } from '../activity/activity.service';
 import { IssueDto } from '@forgeboard/types';
 import { Prisma } from '@prisma/client';
 import { getSocketServer } from '../../infrastructure/socket';
@@ -18,12 +19,21 @@ export class IssuesService {
       data.position = maxPos + 1024;
     }
 
-    return issuesRepository.create({
+    const created = await issuesRepository.create({
       workspaceId,
       projectId,
       creatorId,
       ...data
     });
+    void activityService.logActivity({
+      projectId,
+      workspaceId,
+      actorId: creatorId,
+      action: 'ISSUE_CREATED',
+      targetType: 'ISSUE',
+      targetId: created.id
+    });
+    return created;
   }
 
   async getIssue(projectId: string, issueId: string): Promise<IssueDto> {
@@ -38,7 +48,7 @@ export class IssuesService {
     return issuesRepository.findMany(projectId, filters);
   }
 
-  async updateIssue(projectId: string, issueId: string, data: Prisma.IssueUncheckedUpdateInput): Promise<IssueDto> {
+  async updateIssue(projectId: string, issueId: string, data: Prisma.IssueUncheckedUpdateInput, actorId: string): Promise<IssueDto> {
     const issue = await issuesRepository.findById(issueId);
     if (!issue || issue.projectId !== projectId) {
       throw new AppError('Issue not found', 404, 'NOT_FOUND');
@@ -51,7 +61,19 @@ export class IssuesService {
       }
     }
 
-    return issuesRepository.update(issueId, data);
+    const updated = await issuesRepository.update(issueId, data);
+    
+    if (data.status && data.status !== issue.status) {
+      void activityService.logActivity({ projectId, workspaceId: issue.workspaceId, actorId, action: 'ISSUE_STATUS_CHANGED', targetType: 'ISSUE', targetId: issue.id, metadata: { from: issue.status, to: updated.status } });
+    }
+    if (data.assigneeId !== undefined && data.assigneeId !== issue.assigneeId) {
+      void activityService.logActivity({ projectId, workspaceId: issue.workspaceId, actorId, action: data.assigneeId === null ? 'ISSUE_UNASSIGNED' : 'ISSUE_ASSIGNED', targetType: 'ISSUE', targetId: issue.id, metadata: { from: issue.assigneeId, to: updated.assigneeId } });
+    }
+    if (data.priority && data.priority !== issue.priority) {
+      void activityService.logActivity({ projectId, workspaceId: issue.workspaceId, actorId, action: 'ISSUE_PRIORITY_CHANGED', targetType: 'ISSUE', targetId: issue.id, metadata: { from: issue.priority, to: updated.priority } });
+    }
+    
+    return updated;
   }
 
   async deleteIssue(projectId: string, issueId: string): Promise<void> {
@@ -62,7 +84,7 @@ export class IssuesService {
     await issuesRepository.delete(issueId);
   }
 
-  async moveIssue(projectId: string, issueId: string, status: string, targetIndex: number): Promise<IssueDto> {
+  async moveIssue(projectId: string, issueId: string, status: string, targetIndex: number, actorId: string): Promise<IssueDto> {
     const issue = await issuesRepository.findById(issueId);
     if (!issue || issue.projectId !== projectId) {
       throw new AppError('Issue not found', 404, 'NOT_FOUND');

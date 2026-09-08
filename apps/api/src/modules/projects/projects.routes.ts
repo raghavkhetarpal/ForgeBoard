@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { projectsController } from './projects.controller';
 import { githubController } from '../github/github.controller';
+import { activityController } from '../activity/activity.controller';
 import { requireAuth } from '../../middleware/auth.middleware';
 import { requireWorkspaceRole, requireProjectRole } from '../../middleware/rbac.middleware';
 
@@ -87,6 +88,12 @@ projectRouter.get(
   '/:projectId/github/repos/:repoId/pulls',
   requireProjectRole('VIEWER'),
   githubController.listPullRequests
+);
+
+projectRouter.get(
+  '/:projectId/activity',
+  requireProjectRole('VIEWER'),
+  activityController.getActivities
 );
 
 export { router as workspaceProjectsRouter, projectRouter };

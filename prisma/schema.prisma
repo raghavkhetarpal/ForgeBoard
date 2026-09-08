@@ -29,35 +29,37 @@ enum ProjectStatus {
 }
 
 model User {
-  id             String            @id @default(cuid())
-  email          String            @unique
-  passwordHash   String            @map("password_hash")
-  name           String
-  avatarUrl      String?           @map("avatar_url")
-  createdAt      DateTime          @default(now()) @map("created_at")
-  updatedAt      DateTime          @updatedAt @map("updated_at")
-  memberships    WorkspaceMember[]
-  projectMembers ProjectMember[]
-  createdIssues  Issue[]           @relation("IssueCreator")
-  assignedIssues Issue[]           @relation("IssueAssignee")
-  comments       Comment[]
-  notifications  Notification[]
+  id                          String              @id @default(cuid())
+  email                       String              @unique
+  passwordHash                String              @map("password_hash")
+  name                        String
+  avatarUrl                   String?             @map("avatar_url")
+  createdAt                   DateTime            @default(now()) @map("created_at")
+  updatedAt                   DateTime            @updatedAt @map("updated_at")
+  memberships                 WorkspaceMember[]
+  projectMembers              ProjectMember[]
+  createdIssues               Issue[]             @relation("IssueCreator")
+  assignedIssues              Issue[]             @relation("IssueAssignee")
+  comments                    Comment[]
+  notifications               Notification[]
   installedGithubIntegrations GithubIntegration[]
+  Activity                    Activity[]
 
   @@map("users")
 }
 
 model Workspace {
-  id             String            @id @default(cuid())
-  name           String
-  slug           String            @unique
-  createdAt      DateTime          @default(now()) @map("created_at")
-  updatedAt      DateTime          @updatedAt @map("updated_at")
-  members        WorkspaceMember[]
-  projects       Project[]
-  projectMembers ProjectMember[]
-  issues         Issue[]
+  id                 String              @id @default(cuid())
+  name               String
+  slug               String              @unique
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  members            WorkspaceMember[]
+  projects           Project[]
+  projectMembers     ProjectMember[]
+  issues             Issue[]
   githubIntegrations GithubIntegration[]
+  Activity           Activity[]
 
   @@map("workspaces")
 }
@@ -89,12 +91,13 @@ model Project {
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
-  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  members     ProjectMember[]
-  issues      Issue[]
-  labels      Label[]
-  githubIntegration GithubIntegration?
+  workspace          Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members            ProjectMember[]
+  issues             Issue[]
+  labels             Label[]
+  githubIntegration  GithubIntegration?
   githubRepositories GithubRepository[]
+  Activity           Activity[]
 
   @@index([workspaceId])
   @@map("projects")
@@ -151,12 +154,12 @@ model Issue {
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  creator   User      @relation("IssueCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-  assignee  User?     @relation("IssueAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  labels    IssueLabel[]
-  comments  Comment[]
+  workspace    Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project      Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator      User               @relation("IssueCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  assignee     User?              @relation("IssueAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  labels       IssueLabel[]
+  comments     Comment[]
   pullRequests IssuePullRequest[]
 
   @@index([projectId, status, position])
@@ -173,7 +176,7 @@ model Label {
   color     String
   createdAt DateTime @default(now()) @map("created_at")
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   issues  IssueLabel[]
 
   @@unique([projectId, name])
@@ -233,36 +236,36 @@ model Notification {
 }
 
 model GithubIntegration {
-  id                 String             @id @default(cuid())
-  projectId          String             @unique // 1-to-1 relation with Project (one active integration per project for this pass)
+  id                 String   @id @default(cuid())
+  projectId          String   @unique // 1-to-1 relation with Project (one active integration per project for this pass)
   workspaceId        String
   installedByUserId  String
-  accessToken        String             // Encrypted at rest
+  accessToken        String // Encrypted at rest
   githubAccountLogin String
-  connectedAt        DateTime           @default(now())
+  connectedAt        DateTime @default(now())
 
-  project            Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  workspace          Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  installedByUser    User               @relation(fields: [installedByUserId], references: [id], onDelete: Cascade)
-  repositories       GithubRepository[]
+  project         Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspace       Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  installedByUser User               @relation(fields: [installedByUserId], references: [id], onDelete: Cascade)
+  repositories    GithubRepository[]
 
   @@index([workspaceId])
   @@index([installedByUserId])
 }
 
 model GithubRepository {
-  id               String            @id @default(cuid())
-  integrationId    String
-  projectId        String
-  githubRepoId     Int               // GitHub's internal repository ID
-  owner            String
-  name             String
-  fullName         String
-  connectedAt      DateTime          @default(now())
+  id            String   @id @default(cuid())
+  integrationId String
+  projectId     String
+  githubRepoId  Int // GitHub's internal repository ID
+  owner         String
+  name          String
+  fullName      String
+  connectedAt   DateTime @default(now())
 
-  integration      GithubIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
-  project          Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  issueLinks       IssuePullRequest[]
+  integration GithubIntegration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  project     Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issueLinks  IssuePullRequest[]
 
   @@unique([projectId, githubRepoId])
   @@index([integrationId])
@@ -270,16 +273,16 @@ model GithubRepository {
 }
 
 model IssuePullRequest {
-  id                 String           @id @default(cuid())
-  issueId            String           @map("issue_id")
-  githubRepositoryId String           @map("github_repository_id")
-  prNumber           Int              @map("pr_number")
-  prStatus           String           @map("pr_status") // open, closed, merged
-  prUrl              String           @map("pr_url")
-  linkedAt           DateTime         @default(now()) @map("linked_at")
+  id                 String   @id @default(cuid())
+  issueId            String   @map("issue_id")
+  githubRepositoryId String   @map("github_repository_id")
+  prNumber           Int      @map("pr_number")
+  prStatus           String   @map("pr_status") // open, closed, merged
+  prUrl              String   @map("pr_url")
+  linkedAt           DateTime @default(now()) @map("linked_at")
 
-  issue              Issue            @relation(fields: [issueId], references: [id], onDelete: Cascade)
-  repository         GithubRepository @relation(fields: [githubRepositoryId], references: [id], onDelete: Cascade)
+  issue      Issue            @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  repository GithubRepository @relation(fields: [githubRepositoryId], references: [id], onDelete: Cascade)
 
   @@unique([issueId, githubRepositoryId, prNumber])
   @@index([githubRepositoryId, prNumber])
@@ -294,4 +297,23 @@ model WebhookDelivery {
 
   @@index([receivedAt])
   @@map("webhook_deliveries")
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  projectId   String   @map("project_id")
+  workspaceId String   @map("workspace_id")
+  actorId     String?  @map("actor_id")
+  action      String // e.g. ISSUE_CREATED, ISSUE_STATUS_CHANGED, etc.
+  targetType  String   @map("target_type") // e.g. ISSUE, COMMENT, GITHUB_PR
+  targetId    String   @map("target_id")
+  metadata    Json? // e.g. { from: 'TODO', to: 'IN_PROGRESS' }
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor     User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+  @@map("activities")
 }
