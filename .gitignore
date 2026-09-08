@@ -43,3 +43,4 @@ Thumbs.db
 docker-data/
 # Scratch files
 patch_*.js
+scratch/
