@@ -204,6 +204,7 @@ describe('Webhooks Module Integration Tests', () => {
 
     // Verify issue status
     const issue = await prisma.issue.findUnique({ where: { id: issueId } });
+    const firstUpdatedAt = issue!.updatedAt.getTime();
     expect(issue?.status).toBe('DONE');
     
     // Verify PR link status
@@ -224,9 +225,8 @@ describe('Webhooks Module Integration Tests', () => {
     expect(res2.status).toBe(200);
     expect(res2.text).toBe('Already processed');
 
-    // Verify it wasn't processed again
-    // removed spy check
-    
-    // issueUpdateSpy.mockRestore();
+    // Verify it wasn't processed again by checking that updatedAt didn't change
+    const issueAfterDuplicate = await prisma.issue.findUnique({ where: { id: issueId } });
+    expect(issueAfterDuplicate!.updatedAt.getTime()).toBe(firstUpdatedAt);
   });
 });
