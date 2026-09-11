@@ -33,6 +33,13 @@ export class IssuesService {
       targetType: 'ISSUE',
       targetId: created.id
     });
+
+    try {
+      getSocketServer().to(`project:${projectId}`).emit('issue:created', { issue: created });
+    } catch (e) {
+      console.error('Failed to emit issue:created event', e);
+    }
+
     return created;
   }
 
@@ -73,6 +80,12 @@ export class IssuesService {
       void activityService.logActivity({ projectId, workspaceId: issue.workspaceId, actorId, action: 'ISSUE_PRIORITY_CHANGED', targetType: 'ISSUE', targetId: issue.id, metadata: { from: issue.priority, to: updated.priority } });
     }
     
+    try {
+      getSocketServer().to(`project:${projectId}`).emit('issue:updated', { issue: updated });
+    } catch (e) {
+      console.error('Failed to emit issue:updated event', e);
+    }
+
     return updated;
   }
 
@@ -82,6 +95,12 @@ export class IssuesService {
       throw new AppError('Issue not found', 404, 'NOT_FOUND');
     }
     await issuesRepository.delete(issueId);
+
+    try {
+      getSocketServer().to(`project:${projectId}`).emit('issue:deleted', { issueId, projectId });
+    } catch (e) {
+      console.error('Failed to emit issue:deleted event', e);
+    }
   }
 
   async moveIssue(projectId: string, issueId: string, status: string, targetIndex: number, actorId: string): Promise<IssueDto> {

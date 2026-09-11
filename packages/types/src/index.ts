@@ -310,3 +310,39 @@ export interface GithubAvailableRepoDto {
     login: string;
   };
 }
+
+// Real-Time Socket.IO Event Payloads
+export interface IssueCreatedSocketEvent {
+  issue: IssueDto;
+}
+
+export interface IssueUpdatedSocketEvent {
+  issue: IssueDto;
+}
+
+export interface IssueDeletedSocketEvent {
+  issueId: string;
+  projectId: string;
+}
+
+export interface CommentCreatedSocketEvent {
+  comment: CommentDto;
+}
+
+export interface CommentUpdatedSocketEvent {
+  comment: CommentDto;
+}
+
+export interface CommentDeletedSocketEvent {
+  commentId: string;
+  issueId: string;
+  projectId: string;
+}
+
+export interface NotificationCreatedSocketEvent {
+  notification: NotificationDto;
+}
+
+export interface ActivityCreatedSocketEvent {
+  activity: ActivityDto;
+}

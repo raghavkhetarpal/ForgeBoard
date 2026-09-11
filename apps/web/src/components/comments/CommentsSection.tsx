@@ -2,7 +2,14 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
-import { CommentDto, WorkspaceMemberDto } from '@forgeboard/types';
+import {
+  CommentDto,
+  WorkspaceMemberDto,
+  CommentCreatedSocketEvent,
+  CommentUpdatedSocketEvent,
+  CommentDeletedSocketEvent,
+} from '@forgeboard/types';
+import { getSocket } from '@/lib/socket';
 import { CommentItem } from './CommentItem';
 import { Button } from '@/components/ui/Button';
 import { FormError } from '@/components/ui/FormError';
@@ -78,6 +85,46 @@ export function CommentsSection({
   useEffect(() => {
     loadComments();
   }, [loadComments]);
+
+  // Real-time comments synchronization
+  useEffect(() => {
+    if (!projectId || !issueId) return;
+
+    const socket = getSocket();
+
+    const handleCommentCreated = (data: CommentCreatedSocketEvent) => {
+      if (data?.comment && data.comment.issueId === issueId) {
+        setComments((prev) => {
+          if (prev.some((c) => c.id === data.comment.id)) return prev;
+          return [...prev, data.comment];
+        });
+      }
+    };
+
+    const handleCommentUpdated = (data: CommentUpdatedSocketEvent) => {
+      if (data?.comment && data.comment.issueId === issueId) {
+        setComments((prev) =>
+          prev.map((c) => (c.id === data.comment.id ? data.comment : c))
+        );
+      }
+    };
+
+    const handleCommentDeleted = (data: CommentDeletedSocketEvent) => {
+      if (data?.issueId === issueId && data.commentId) {
+        setComments((prev) => prev.filter((c) => c.id !== data.commentId));
+      }
+    };
+
+    socket.on('comment:created', handleCommentCreated);
+    socket.on('comment:updated', handleCommentUpdated);
+    socket.on('comment:deleted', handleCommentDeleted);
+
+    return () => {
+      socket.off('comment:created', handleCommentCreated);
+      socket.off('comment:updated', handleCommentUpdated);
+      socket.off('comment:deleted', handleCommentDeleted);
+    };
+  }, [projectId, issueId]);
 
   // Autocomplete matching members
   const matchingMembers = React.useMemo(() => {

@@ -93,6 +93,13 @@ export class CommentsService {
 
     const updated = await commentsRepository.update(commentId, { content, edited: true });
     await this.processMentions(projectId, commentId, authorId, content);
+
+    try {
+      getSocketServer().to(`project:${projectId}`).emit('comment:updated', { comment: updated });
+    } catch (e) {
+      console.error('Failed to emit comment:updated event', e);
+    }
+
     return updated;
   }
 
@@ -113,6 +120,12 @@ export class CommentsService {
     }
 
     await commentsRepository.delete(commentId);
+
+    try {
+      getSocketServer().to(`project:${projectId}`).emit('comment:deleted', { commentId, issueId, projectId });
+    } catch (e) {
+      console.error('Failed to emit comment:deleted event', e);
+    }
   }
 }
 

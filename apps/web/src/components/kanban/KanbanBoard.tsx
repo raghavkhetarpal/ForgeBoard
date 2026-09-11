@@ -2,7 +2,16 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
-import { IssueDto, IssueStatus, WorkspaceMemberDto, LabelDto } from '@forgeboard/types';
+import {
+  IssueDto,
+  IssueStatus,
+  WorkspaceMemberDto,
+  LabelDto,
+  IssueCreatedSocketEvent,
+  IssueUpdatedSocketEvent,
+  IssueDeletedSocketEvent,
+} from '@forgeboard/types';
+import { useProjectSocket } from '@/hooks/useProjectSocket';
 import { KanbanColumn } from './KanbanColumn';
 import { CreateIssueModal } from './CreateIssueModal';
 import { IssueDetailModal } from './IssueDetailModal';
@@ -113,6 +122,53 @@ export function KanbanBoard({
   useEffect(() => {
     loadBoardData();
   }, [loadBoardData]);
+
+  // Real-time project room subscription and reconnect reconciliation
+  const { socket, isConnected } = useProjectSocket({
+    projectId,
+    onReconnect: loadBoardData,
+  });
+
+  useEffect(() => {
+    if (!socket || !projectId) return;
+
+    const handleIssueCreated = (data: IssueCreatedSocketEvent) => {
+      if (data?.issue && data.issue.projectId === projectId) {
+        setIssues((prev) => {
+          if (prev.some((i) => i.id === data.issue.id)) return prev;
+          return [...prev, data.issue];
+        });
+      }
+    };
+
+    const handleIssueUpdated = (data: IssueUpdatedSocketEvent) => {
+      if (data?.issue && data.issue.projectId === projectId) {
+        setIssues((prev) =>
+          prev.map((i) => (i.id === data.issue.id ? data.issue : i))
+        );
+        setSelectedIssue((prev) =>
+          prev?.id === data.issue.id ? data.issue : prev
+        );
+      }
+    };
+
+    const handleIssueDeleted = (data: IssueDeletedSocketEvent) => {
+      if (data?.projectId === projectId && data.issueId) {
+        setIssues((prev) => prev.filter((i) => i.id !== data.issueId));
+        setSelectedIssue((prev) => (prev?.id === data.issueId ? null : prev));
+      }
+    };
+
+    socket.on('issue:created', handleIssueCreated);
+    socket.on('issue:updated', handleIssueUpdated);
+    socket.on('issue:deleted', handleIssueDeleted);
+
+    return () => {
+      socket.off('issue:created', handleIssueCreated);
+      socket.off('issue:updated', handleIssueUpdated);
+      socket.off('issue:deleted', handleIssueDeleted);
+    };
+  }, [socket, projectId]);
 
   // Drag-and-drop start
   const handleDragStart = (
@@ -349,6 +405,24 @@ export function KanbanBoard({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2 shrink-0">
+          <div
+            className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-foreground/[0.03] border border-border text-[11px] text-foreground/70"
+            title={
+              isConnected
+                ? 'Real-time board synchronization active'
+                : 'Connecting to real-time server...'
+            }
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+              }`}
+            />
+            <span className="font-medium hidden sm:inline">
+              {isConnected ? 'Live' : 'Connecting'}
+            </span>
+          </div>
+
           <Button
             variant="outline"
             onClick={() => setIsManageLabelsModalOpen(true)}

@@ -200,4 +200,212 @@ describe('Socket.IO Real-Time Events', () => {
       });
     });
   });
+
+  it('broadcasts issue:created when creating an issue', () => {
+    return new Promise<void>((resolve, reject) => {
+      const listenerSocket = Client(`http://localhost:${port}`, {
+        auth: { token: listenerToken },
+        transports: ['websocket'],
+      });
+
+      listenerSocket.on('connect', () => {
+        listenerSocket.emit('join:project', { projectId }, async (res: { success?: boolean }) => {
+          if (!res.success) return reject(new Error('Failed to join room'));
+
+          listenerSocket.on('issue:created', (payload) => {
+            try {
+              expect(payload.issue).toBeDefined();
+              expect(payload.issue.title).toBe('New Real-Time Issue');
+              expect(payload.issue.projectId).toBe(projectId);
+              listenerSocket.close();
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
+          });
+
+          const response = await request(app)
+            .post(`/api/projects/${projectId}/issues`)
+            .set('Authorization', `Bearer ${actorToken}`)
+            .send({ title: 'New Real-Time Issue', status: 'TODO', priority: 'HIGH' });
+
+          if (response.status !== 201) {
+            reject(new Error(`API failed: ${response.body.error?.message}`));
+          }
+        });
+      });
+    });
+  });
+
+  it('broadcasts issue:updated when updating an issue via PATCH', () => {
+    return new Promise<void>((resolve, reject) => {
+      const listenerSocket = Client(`http://localhost:${port}`, {
+        auth: { token: listenerToken },
+        transports: ['websocket'],
+      });
+
+      listenerSocket.on('connect', () => {
+        listenerSocket.emit('join:project', { projectId }, async (res: { success?: boolean }) => {
+          if (!res.success) return reject(new Error('Failed to join room'));
+
+          listenerSocket.on('issue:updated', (payload) => {
+            try {
+              expect(payload.issue).toBeDefined();
+              expect(payload.issue.id).toBe(issueId);
+              expect(payload.issue.title).toBe('Updated Title Live');
+              listenerSocket.close();
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
+          });
+
+          const response = await request(app)
+            .patch(`/api/projects/${projectId}/issues/${issueId}`)
+            .set('Authorization', `Bearer ${actorToken}`)
+            .send({ title: 'Updated Title Live' });
+
+          if (response.status !== 200) {
+            reject(new Error(`API failed: ${response.body.error?.message}`));
+          }
+        });
+      });
+    });
+  });
+
+  it('broadcasts issue:deleted when deleting an issue', () => {
+    return new Promise<void>((resolve, reject) => {
+      const listenerSocket = Client(`http://localhost:${port}`, {
+        auth: { token: listenerToken },
+        transports: ['websocket'],
+      });
+
+      listenerSocket.on('connect', () => {
+        listenerSocket.emit('join:project', { projectId }, async (res: { success?: boolean }) => {
+          if (!res.success) return reject(new Error('Failed to join room'));
+
+          // Create a temp issue to delete
+          const tempIssue = await prisma.issue.create({
+            data: { projectId, workspaceId, title: 'To Delete', creatorId: actorId }
+          });
+
+          listenerSocket.on('issue:deleted', (payload) => {
+            try {
+              expect(payload.issueId).toBe(tempIssue.id);
+              expect(payload.projectId).toBe(projectId);
+              listenerSocket.close();
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
+          });
+
+          const response = await request(app)
+            .delete(`/api/projects/${projectId}/issues/${tempIssue.id}`)
+            .set('Authorization', `Bearer ${actorToken}`);
+
+          if (response.status !== 204) {
+            reject(new Error(`API failed: ${response.status}`));
+          }
+        });
+      });
+    });
+  });
+
+  it('broadcasts comment:updated and comment:deleted when modifying comments', () => {
+    return new Promise<void>((resolve, reject) => {
+      const listenerSocket = Client(`http://localhost:${port}`, {
+        auth: { token: listenerToken },
+        transports: ['websocket'],
+      });
+
+      listenerSocket.on('connect', () => {
+        listenerSocket.emit('join:project', { projectId }, async (res: { success?: boolean }) => {
+          if (!res.success) return reject(new Error('Failed to join room'));
+
+          // Create a comment first
+          const createRes = await request(app)
+            .post(`/api/projects/${projectId}/issues/${issueId}/comments`)
+            .set('Authorization', `Bearer ${actorToken}`)
+            .send({ content: 'Initial comment' });
+
+          const createdCommentId = createRes.body.comment.id;
+
+          listenerSocket.on('comment:updated', (payload) => {
+            try {
+              expect(payload.comment).toBeDefined();
+              expect(payload.comment.id).toBe(createdCommentId);
+              expect(payload.comment.content).toBe('Edited comment text');
+
+              // Now delete the comment
+              listenerSocket.on('comment:deleted', (delPayload) => {
+                try {
+                  expect(delPayload.commentId).toBe(createdCommentId);
+                  expect(delPayload.issueId).toBe(issueId);
+                  listenerSocket.close();
+                  resolve();
+                } catch (delErr) {
+                  reject(delErr);
+                }
+              });
+
+              request(app)
+                .delete(`/api/projects/${projectId}/issues/${issueId}/comments/${createdCommentId}`)
+                .set('Authorization', `Bearer ${actorToken}`)
+                .then((delRes) => {
+                  if (delRes.status !== 200) {
+                    reject(new Error(`Delete failed: ${delRes.status}`));
+                  }
+                });
+            } catch (e) {
+              reject(e);
+            }
+          });
+
+          // Trigger edit
+          const editRes = await request(app)
+            .patch(`/api/projects/${projectId}/issues/${issueId}/comments/${createdCommentId}`)
+            .set('Authorization', `Bearer ${actorToken}`)
+            .send({ content: 'Edited comment text' });
+
+          if (editRes.status !== 200) {
+            reject(new Error(`Edit failed: ${editRes.body.error?.message}`));
+          }
+        });
+      });
+    });
+  });
+
+  it('broadcasts activity:created when activity is logged', () => {
+    return new Promise<void>((resolve, reject) => {
+      const listenerSocket = Client(`http://localhost:${port}`, {
+        auth: { token: listenerToken },
+        transports: ['websocket'],
+      });
+
+      listenerSocket.on('connect', () => {
+        listenerSocket.emit('join:project', { projectId }, async (res: { success?: boolean }) => {
+          if (!res.success) return reject(new Error('Failed to join room'));
+
+          listenerSocket.on('activity:created', (payload) => {
+            try {
+              expect(payload.activity).toBeDefined();
+              expect(payload.activity.projectId).toBe(projectId);
+              expect(payload.activity.action).toBe('ISSUE_CREATED');
+              listenerSocket.close();
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
+          });
+
+          // Trigger an issue creation which logs activity
+          await request(app)
+            .post(`/api/projects/${projectId}/issues`)
+            .set('Authorization', `Bearer ${actorToken}`)
+            .send({ title: 'Activity Trigger Issue', status: 'TODO' });
+        });
+      });
+    });
+  });
 });

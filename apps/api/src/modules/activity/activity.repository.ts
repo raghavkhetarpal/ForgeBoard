@@ -22,6 +22,11 @@ export class ActivityRepository {
         targetType: data.targetType,
         targetId: data.targetId,
         metadata: data.metadata ? (data.metadata as Prisma.InputJsonValue) : Prisma.JsonNull,
+      },
+      include: {
+        actor: {
+          select: { id: true, name: true, email: true, avatarUrl: true }
+        }
       }
     });
   }

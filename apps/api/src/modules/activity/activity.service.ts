@@ -1,4 +1,5 @@
 import { activityRepository } from './activity.repository';
+import { getSocketServer } from '../../infrastructure/socket';
 
 export class ActivityService {
   /**
@@ -15,7 +16,12 @@ export class ActivityService {
     metadata?: any;
   }): Promise<void> {
     try {
-      await activityRepository.createActivity(data);
+      const activity = await activityRepository.createActivity(data);
+      try {
+        getSocketServer().to(`project:${data.projectId}`).emit('activity:created', { activity });
+      } catch (e) {
+        console.error('[ActivityService] Failed to emit activity:created:', e);
+      }
     } catch (error) {
       // Log the error silently, do not rethrow to prevent breaking core flows
       console.error('[ActivityService] Failed to log activity:', error);

@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
-import { ActivityDto } from '@forgeboard/types';
+import { ActivityDto, ActivityCreatedSocketEvent } from '@forgeboard/types';
+import { getSocket } from '@/lib/socket';
 import { Button } from '@/components/ui/Button';
 import {
   Activity as ActivityIcon,
@@ -61,6 +62,28 @@ export function ProjectActivityFeed({ projectId }: ProjectActivityFeedProps) {
   useEffect(() => {
     loadActivities();
   }, [loadActivities]);
+
+  // Real-time activity feed synchronization
+  useEffect(() => {
+    if (!projectId) return;
+
+    const socket = getSocket();
+
+    const handleActivityCreated = (data: ActivityCreatedSocketEvent) => {
+      if (data?.activity && data.activity.projectId === projectId) {
+        setActivities((prev) => {
+          if (prev.some((a) => a.id === data.activity.id)) return prev;
+          return [data.activity, ...prev];
+        });
+      }
+    };
+
+    socket.on('activity:created', handleActivityCreated);
+
+    return () => {
+      socket.off('activity:created', handleActivityCreated);
+    };
+  }, [projectId]);
 
   const filteredActivities = useMemo(() => {
     if (filter === 'ALL') return activities;
