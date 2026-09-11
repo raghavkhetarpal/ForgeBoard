@@ -85,7 +85,11 @@ export function NotificationDropdown() {
     const socket = getSocket();
     const handleNotificationCreated = (data: { notification: NotificationDto }) => {
       if (data?.notification) {
-        setNotifications((prev) => [data.notification, ...prev]);
+        setNotifications((prev) =>
+          prev.some((n) => n.id === data.notification.id)
+            ? prev
+            : [data.notification, ...prev]
+        );
       }
     };
 

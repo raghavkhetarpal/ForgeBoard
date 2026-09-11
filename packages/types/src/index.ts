@@ -420,3 +420,29 @@ export interface NotificationCreatedSocketEvent {
 export interface ActivityCreatedSocketEvent {
   activity: ActivityDto;
 }
+
+export interface MilestoneCreatedSocketEvent {
+  milestone: MilestoneWithProgressDto;
+}
+
+export interface MilestoneUpdatedSocketEvent {
+  milestone: MilestoneWithProgressDto;
+}
+
+export interface MilestoneDeletedSocketEvent {
+  milestoneId: string;
+  projectId: string;
+}
+
+export interface LabelCreatedSocketEvent {
+  label: LabelDto;
+}
+
+export interface LabelUpdatedSocketEvent {
+  label: LabelDto;
+}
+
+export interface LabelDeletedSocketEvent {
+  labelId: string;
+  projectId: string;
+}

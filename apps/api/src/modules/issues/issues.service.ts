@@ -1,10 +1,23 @@
 import { issuesRepository, IssueFilters, PaginatedIssuesResult } from './issues.repository';
+import { milestonesRepository } from '../milestones/milestones.repository';
 import { AppError } from '../../infrastructure/errors';
 import { activityService } from '../activity/activity.service';
 import { IssueDto } from '@forgeboard/types';
 import { Prisma } from '@prisma/client';
 import { getSocketServer } from '../../infrastructure/socket';
 import prisma from '../../infrastructure/prisma';
+
+async function emitMilestoneProgress(projectId: string, milestoneId: string | null | undefined) {
+  if (!milestoneId) return;
+  try {
+    const milestone = await milestonesRepository.findByIdWithProgress(milestoneId);
+    if (milestone) {
+      getSocketServer().to(`project:${projectId}`).emit('milestone:updated', { milestone });
+    }
+  } catch (e) {
+    console.error('Failed to emit milestone progress update', e);
+  }
+}
 
 export class IssuesService {
   async createIssue(projectId: string, workspaceId: string, creatorId: string, data: Omit<Prisma.IssueUncheckedCreateInput, 'workspaceId' | 'projectId' | 'creatorId'>): Promise<IssueDto> {
@@ -46,6 +59,10 @@ export class IssuesService {
       getSocketServer().to(`project:${projectId}`).emit('issue:created', { issue: created });
     } catch (e) {
       console.error('Failed to emit issue:created event', e);
+    }
+
+    if (created.milestoneId) {
+      void emitMilestoneProgress(projectId, created.milestoneId);
     }
 
     return created;
@@ -101,6 +118,13 @@ export class IssuesService {
       console.error('Failed to emit issue:updated event', e);
     }
 
+    if (issue.milestoneId) {
+      void emitMilestoneProgress(projectId, issue.milestoneId);
+    }
+    if (updated.milestoneId && updated.milestoneId !== issue.milestoneId) {
+      void emitMilestoneProgress(projectId, updated.milestoneId);
+    }
+
     return updated;
   }
 
@@ -115,6 +139,10 @@ export class IssuesService {
       getSocketServer().to(`project:${projectId}`).emit('issue:deleted', { issueId, projectId });
     } catch (e) {
       console.error('Failed to emit issue:deleted event', e);
+    }
+
+    if (issue.milestoneId) {
+      void emitMilestoneProgress(projectId, issue.milestoneId);
     }
   }
 
@@ -165,6 +193,10 @@ export class IssuesService {
       getSocketServer().to(`project:${projectId}`).emit('issue:updated', { issue: updatedIssue });
     } catch (e) {
       console.error('Failed to emit issue:updated event', e);
+    }
+
+    if (updatedIssue.milestoneId) {
+      void emitMilestoneProgress(projectId, updatedIssue.milestoneId);
     }
     
     return updatedIssue;

@@ -2,6 +2,8 @@ import { labelsRepository } from './labels.repository';
 import { AppError } from '../../infrastructure/errors';
 import { LabelDto } from '@forgeboard/types';
 import prisma from '../../infrastructure/prisma';
+import { getSocketServer } from '../../infrastructure/socket';
+import { issuesRepository } from '../issues/issues.repository';
 
 export class LabelsService {
   async createLabel(projectId: string, data: { name: string, color: string }): Promise<LabelDto> {
@@ -11,7 +13,13 @@ export class LabelsService {
     if (existing) {
       throw new AppError('Label with this name already exists in the project', 400, 'BAD_REQUEST');
     }
-    return labelsRepository.create(projectId, data);
+    const created = await labelsRepository.create(projectId, data);
+    try {
+      getSocketServer().to(`project:${projectId}`).emit('label:created', { label: created });
+    } catch (e) {
+      console.error('Failed to emit label:created event', e);
+    }
+    return created;
   }
 
   async listLabels(projectId: string): Promise<LabelDto[]> {
@@ -33,7 +41,13 @@ export class LabelsService {
       }
     }
 
-    return labelsRepository.update(labelId, data);
+    const updated = await labelsRepository.update(labelId, data);
+    try {
+      getSocketServer().to(`project:${projectId}`).emit('label:updated', { label: updated });
+    } catch (e) {
+      console.error('Failed to emit label:updated event', e);
+    }
+    return updated;
   }
 
   async deleteLabel(projectId: string, labelId: string): Promise<void> {
@@ -42,6 +56,11 @@ export class LabelsService {
       throw new AppError('Label not found', 404, 'NOT_FOUND');
     }
     await labelsRepository.delete(labelId);
+    try {
+      getSocketServer().to(`project:${projectId}`).emit('label:deleted', { labelId, projectId });
+    } catch (e) {
+      console.error('Failed to emit label:deleted event', e);
+    }
   }
 
   async attachToIssue(projectId: string, issueId: string, labelId: string): Promise<void> {
@@ -63,6 +82,15 @@ export class LabelsService {
         return;
       }
       throw err;
+    }
+
+    try {
+      const updatedIssue = await issuesRepository.findById(issueId);
+      if (updatedIssue) {
+        getSocketServer().to(`project:${projectId}`).emit('issue:updated', { issue: updatedIssue });
+      }
+    } catch (e) {
+      console.error('Failed to emit issue:updated after attachToIssue', e);
     }
   }
 
@@ -86,7 +114,17 @@ export class LabelsService {
       }
       throw err;
     }
+
+    try {
+      const updatedIssue = await issuesRepository.findById(issueId);
+      if (updatedIssue) {
+        getSocketServer().to(`project:${projectId}`).emit('issue:updated', { issue: updatedIssue });
+      }
+    } catch (e) {
+      console.error('Failed to emit issue:updated after removeFromIssue', e);
+    }
   }
 }
 
 export const labelsService = new LabelsService();
+

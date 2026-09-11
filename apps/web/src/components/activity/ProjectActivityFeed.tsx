@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
 import { ActivityDto, ActivityCreatedSocketEvent } from '@forgeboard/types';
-import { getSocket } from '@/lib/socket';
+import { useProjectSocket } from '@/hooks/useProjectSocket';
 import { Button } from '@/components/ui/Button';
 import {
   Activity as ActivityIcon,
@@ -63,11 +63,14 @@ export function ProjectActivityFeed({ projectId }: ProjectActivityFeedProps) {
     loadActivities();
   }, [loadActivities]);
 
+  const { socket } = useProjectSocket({
+    projectId,
+    onReconnect: loadActivities,
+  });
+
   // Real-time activity feed synchronization
   useEffect(() => {
-    if (!projectId) return;
-
-    const socket = getSocket();
+    if (!socket || !projectId) return;
 
     const handleActivityCreated = (data: ActivityCreatedSocketEvent) => {
       if (data?.activity && data.activity.projectId === projectId) {
@@ -83,7 +86,7 @@ export function ProjectActivityFeed({ projectId }: ProjectActivityFeedProps) {
     return () => {
       socket.off('activity:created', handleActivityCreated);
     };
-  }, [projectId]);
+  }, [socket, projectId]);
 
   const filteredActivities = useMemo(() => {
     if (filter === 'ALL') return activities;

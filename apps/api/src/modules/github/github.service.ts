@@ -4,6 +4,8 @@ import { activityService } from '../activity/activity.service';
 import { GithubClient } from '../../infrastructure/github-client';
 import { encryptString, decryptString } from '../../infrastructure/encryption';
 import { signOAuthState, verifyOAuthState } from './github.utils';
+import { getSocketServer } from '../../infrastructure/socket';
+import { issuesRepository } from '../issues/issues.repository';
 
 export class GithubService {
   async getConnectUrl(projectId: string, userId: string): Promise<string> {
@@ -145,6 +147,15 @@ export class GithubService {
       targetId: link.id,
       metadata: { repo: repo.fullName, prNumber, prUrl: pr.url }
     });
+
+    try {
+      const updatedIssue = await issuesRepository.findById(issueId);
+      if (updatedIssue) {
+        getSocketServer().to(`project:${projectId}`).emit('issue:updated', { issue: updatedIssue });
+      }
+    } catch (e) {
+      console.error('Failed to emit issue:updated after linkPullRequest', e);
+    }
     
     return link;
   }

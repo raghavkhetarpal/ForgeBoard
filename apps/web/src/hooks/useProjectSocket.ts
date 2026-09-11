@@ -14,6 +14,16 @@ interface UseProjectSocketReturn {
   isConnected: boolean;
 }
 
+// Global reference counter for active project room subscriptions
+const projectRoomRefCounts = new Map<string, number>();
+
+function joinProjectRoom(socket: Socket, projectId: string, onResult?: (connected: boolean) => void) {
+  if (!socket.connected) return;
+  socket.emit('join:project', { projectId }, (res?: { success?: boolean; error?: string }) => {
+    onResult?.(Boolean(res?.success));
+  });
+}
+
 export function useProjectSocket({
   projectId,
   onReconnect,
@@ -27,26 +37,21 @@ export function useProjectSocket({
 
     const socket = getSocket();
 
-    // Helper to join room
-    const joinRoom = () => {
-      socket.emit('join:project', { projectId }, (res?: { success?: boolean; error?: string }) => {
-        if (res?.success) {
-          setIsConnected(true);
-        } else {
-          setIsConnected(false);
-        }
-      });
-    };
+    // Increment reference count for this project room
+    const currentCount = projectRoomRefCounts.get(projectId) || 0;
+    projectRoomRefCounts.set(projectId, currentCount + 1);
 
-    // If socket is already connected, join immediately
-    if (socket.connected) {
-      joinRoom();
+    // If first subscriber, join the room
+    if (currentCount === 0 && socket.connected) {
+      joinProjectRoom(socket, projectId, setIsConnected);
+    } else if (socket.connected) {
+      setIsConnected(true);
     }
 
     const handleConnect = () => {
       setIsConnected(true);
-      joinRoom();
-      // Trigger REST reconciliation callback if provided (ARCHITECTURE.md §6)
+      // Re-join project room on reconnect
+      joinProjectRoom(socket, projectId, setIsConnected);
       if (onReconnectRef.current) {
         onReconnectRef.current();
       }
@@ -62,8 +67,16 @@ export function useProjectSocket({
     return () => {
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
-      if (socket.connected) {
-        socket.emit('leave:project', { projectId });
+
+      // Decrement reference count
+      const count = (projectRoomRefCounts.get(projectId) || 1) - 1;
+      if (count <= 0) {
+        projectRoomRefCounts.delete(projectId);
+        if (socket.connected) {
+          socket.emit('leave:project', { projectId });
+        }
+      } else {
+        projectRoomRefCounts.set(projectId, count);
       }
       setIsConnected(false);
     };
@@ -74,3 +87,4 @@ export function useProjectSocket({
     isConnected,
   };
 }
+

@@ -12,6 +12,12 @@ import {
   IssueCreatedSocketEvent,
   IssueUpdatedSocketEvent,
   IssueDeletedSocketEvent,
+  LabelCreatedSocketEvent,
+  LabelUpdatedSocketEvent,
+  LabelDeletedSocketEvent,
+  MilestoneCreatedSocketEvent,
+  MilestoneUpdatedSocketEvent,
+  MilestoneDeletedSocketEvent,
 } from '@forgeboard/types';
 import { useProjectSocket } from '@/hooks/useProjectSocket';
 import { KanbanColumn } from './KanbanColumn';
@@ -168,14 +174,74 @@ export function KanbanBoard({
       }
     };
 
+    const handleLabelCreated = (data: LabelCreatedSocketEvent) => {
+      if (data?.label?.projectId === projectId) {
+        setLabels((prev) =>
+          prev.some((l) => l.id === data.label.id) ? prev : [...prev, data.label]
+        );
+      }
+    };
+
+    const handleLabelUpdated = (data: LabelUpdatedSocketEvent) => {
+      if (data?.label?.projectId === projectId) {
+        setLabels((prev) =>
+          prev.map((l) => (l.id === data.label.id ? data.label : l))
+        );
+      }
+    };
+
+    const handleLabelDeleted = (data: LabelDeletedSocketEvent) => {
+      if (data?.projectId === projectId) {
+        setLabels((prev) => prev.filter((l) => l.id !== data.labelId));
+      }
+    };
+
+    const handleMilestoneCreated = (data: MilestoneCreatedSocketEvent) => {
+      if (data?.milestone?.projectId === projectId) {
+        setMilestones((prev) =>
+          prev.some((m) => m.id === data.milestone.id)
+            ? prev
+            : [...prev, data.milestone]
+        );
+      }
+    };
+
+    const handleMilestoneUpdated = (data: MilestoneUpdatedSocketEvent) => {
+      if (data?.milestone?.projectId === projectId) {
+        setMilestones((prev) =>
+          prev.map((m) => (m.id === data.milestone.id ? data.milestone : m))
+        );
+      }
+    };
+
+    const handleMilestoneDeleted = (data: MilestoneDeletedSocketEvent) => {
+      if (data?.projectId === projectId) {
+        setMilestones((prev) =>
+          prev.filter((m) => m.id !== data.milestoneId)
+        );
+      }
+    };
+
     socket.on('issue:created', handleIssueCreated);
     socket.on('issue:updated', handleIssueUpdated);
     socket.on('issue:deleted', handleIssueDeleted);
+    socket.on('label:created', handleLabelCreated);
+    socket.on('label:updated', handleLabelUpdated);
+    socket.on('label:deleted', handleLabelDeleted);
+    socket.on('milestone:created', handleMilestoneCreated);
+    socket.on('milestone:updated', handleMilestoneUpdated);
+    socket.on('milestone:deleted', handleMilestoneDeleted);
 
     return () => {
       socket.off('issue:created', handleIssueCreated);
       socket.off('issue:updated', handleIssueUpdated);
       socket.off('issue:deleted', handleIssueDeleted);
+      socket.off('label:created', handleLabelCreated);
+      socket.off('label:updated', handleLabelUpdated);
+      socket.off('label:deleted', handleLabelDeleted);
+      socket.off('milestone:created', handleMilestoneCreated);
+      socket.off('milestone:updated', handleMilestoneUpdated);
+      socket.off('milestone:deleted', handleMilestoneDeleted);
     };
   }, [socket, projectId]);
 
@@ -290,7 +356,10 @@ export function KanbanBoard({
   };
 
   const handleIssueCreated = (newIssue: IssueDto) => {
-    setIssues((prev) => [...prev, newIssue]);
+    setIssues((prev) => {
+      if (prev.some((i) => i.id === newIssue.id)) return prev;
+      return [...prev, newIssue];
+    });
   };
 
   // Issue edit/delete handlers

@@ -241,7 +241,9 @@ export function CommentsSection({
         }
       );
 
-      setComments((prev) => [...prev, res.comment]);
+      setComments((prev) =>
+        prev.some((c) => c.id === res.comment.id) ? prev : [...prev, res.comment]
+      );
       setNewCommentText('');
       setMentionQuery(null);
     } catch (err: unknown) {

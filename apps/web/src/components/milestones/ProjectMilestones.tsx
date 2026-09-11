@@ -2,7 +2,14 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
-import { MilestoneWithProgressDto, MilestoneStatus } from '@forgeboard/types';
+import {
+  MilestoneWithProgressDto,
+  MilestoneStatus,
+  MilestoneCreatedSocketEvent,
+  MilestoneUpdatedSocketEvent,
+  MilestoneDeletedSocketEvent,
+} from '@forgeboard/types';
+import { useProjectSocket } from '@/hooks/useProjectSocket';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
@@ -98,6 +105,52 @@ export function ProjectMilestones({
     fetchMilestones();
   }, [fetchMilestones]);
 
+  // Real-time milestone synchronization
+  const { socket } = useProjectSocket({
+    projectId,
+    onReconnect: fetchMilestones,
+  });
+
+  useEffect(() => {
+    if (!socket || !projectId) return;
+
+    const handleMilestoneCreated = (data: MilestoneCreatedSocketEvent) => {
+      if (data?.milestone?.projectId === projectId) {
+        setMilestones((prev) =>
+          prev.some((m) => m.id === data.milestone.id)
+            ? prev
+            : [data.milestone, ...prev]
+        );
+      }
+    };
+
+    const handleMilestoneUpdated = (data: MilestoneUpdatedSocketEvent) => {
+      if (data?.milestone?.projectId === projectId) {
+        setMilestones((prev) =>
+          prev.map((m) => (m.id === data.milestone.id ? data.milestone : m))
+        );
+      }
+    };
+
+    const handleMilestoneDeleted = (data: MilestoneDeletedSocketEvent) => {
+      if (data?.projectId === projectId) {
+        setMilestones((prev) =>
+          prev.filter((m) => m.id !== data.milestoneId)
+        );
+      }
+    };
+
+    socket.on('milestone:created', handleMilestoneCreated);
+    socket.on('milestone:updated', handleMilestoneUpdated);
+    socket.on('milestone:deleted', handleMilestoneDeleted);
+
+    return () => {
+      socket.off('milestone:created', handleMilestoneCreated);
+      socket.off('milestone:updated', handleMilestoneUpdated);
+      socket.off('milestone:deleted', handleMilestoneDeleted);
+    };
+  }, [socket, projectId]);
+
   // Create Milestone Handler
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +180,11 @@ export function ProjectMilestones({
         }
       );
 
-      setMilestones((prev) => [res.milestone, ...prev]);
+      setMilestones((prev) =>
+        prev.some((m) => m.id === res.milestone.id)
+          ? prev
+          : [res.milestone, ...prev]
+      );
       setIsCreateOpen(false);
       setCreateName('');
       setCreateDescription('');

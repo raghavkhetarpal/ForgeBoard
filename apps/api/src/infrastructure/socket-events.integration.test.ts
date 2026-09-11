@@ -408,4 +408,267 @@ describe('Socket.IO Real-Time Events', () => {
       });
     });
   });
+
+  it('broadcasts label:created, label:updated, and label:deleted to project room', () => {
+    return new Promise<void>((resolve, reject) => {
+      const listenerSocket = Client(`http://localhost:${port}`, {
+        auth: { token: listenerToken },
+        transports: ['websocket'],
+      });
+
+      listenerSocket.on('connect', () => {
+        listenerSocket.emit('join:project', { projectId }, async (res: { success?: boolean }) => {
+          if (!res.success) return reject(new Error('Failed to join room'));
+
+          let createdLabelId = '';
+
+          listenerSocket.on('label:created', (payload) => {
+            try {
+              expect(payload.label).toBeDefined();
+              expect(payload.label.name).toBe('Realtime Bug');
+              expect(payload.label.color).toBe('#ef4444');
+              createdLabelId = payload.label.id;
+
+              // Setup updated listener
+              listenerSocket.on('label:updated', (upPayload) => {
+                try {
+                  expect(upPayload.label.id).toBe(createdLabelId);
+                  expect(upPayload.label.name).toBe('Realtime Critical Bug');
+
+                  // Setup deleted listener
+                  listenerSocket.on('label:deleted', (delPayload) => {
+                    try {
+                      expect(delPayload.labelId).toBe(createdLabelId);
+                      expect(delPayload.projectId).toBe(projectId);
+                      listenerSocket.close();
+                      resolve();
+                    } catch (delErr) {
+                      reject(delErr);
+                    }
+                  });
+
+                  // Trigger DELETE label
+                  request(app)
+                    .delete(`/api/projects/${projectId}/labels/${createdLabelId}`)
+                    .set('Authorization', `Bearer ${actorToken}`)
+                    .then((delRes) => {
+                      if (delRes.status !== 200) reject(new Error('Delete label failed'));
+                    });
+                } catch (upErr) {
+                  reject(upErr);
+                }
+              });
+
+              // Trigger PATCH label
+              request(app)
+                .patch(`/api/projects/${projectId}/labels/${createdLabelId}`)
+                .set('Authorization', `Bearer ${actorToken}`)
+                .send({ name: 'Realtime Critical Bug' })
+                .then((upRes) => {
+                  if (upRes.status !== 200) reject(new Error('Update label failed'));
+                });
+            } catch (err) {
+              reject(err);
+            }
+          });
+
+          // Trigger POST label
+          const createRes = await request(app)
+            .post(`/api/projects/${projectId}/labels`)
+            .set('Authorization', `Bearer ${actorToken}`)
+            .send({ name: 'Realtime Bug', color: '#ef4444' });
+
+          if (createRes.status !== 201) {
+            reject(new Error(`Failed to create label: ${createRes.status}`));
+          }
+        });
+      });
+    });
+  });
+
+  it('broadcasts issue:updated when attaching and removing labels', () => {
+    return new Promise<void>((resolve, reject) => {
+      const listenerSocket = Client(`http://localhost:${port}`, {
+        auth: { token: listenerToken },
+        transports: ['websocket'],
+      });
+
+      listenerSocket.on('connect', () => {
+        listenerSocket.emit('join:project', { projectId }, async (res: { success?: boolean }) => {
+          if (!res.success) return reject(new Error('Failed to join room'));
+
+          // Create a label first
+          const labelRes = await request(app)
+            .post(`/api/projects/${projectId}/labels`)
+            .set('Authorization', `Bearer ${actorToken}`)
+            .send({ name: 'Label Attach Test', color: '#3b82f6' });
+          const testLabelId = labelRes.body.label.id;
+
+          let attached = false;
+
+          listenerSocket.on('issue:updated', (payload) => {
+            try {
+              if (payload.issue.id === issueId) {
+                if (!attached) {
+                  expect(payload.issue.labels.some((l: any) => l.id === testLabelId)).toBe(true);
+                  attached = true;
+
+                  // Trigger detach
+                  request(app)
+                    .delete(`/api/projects/${projectId}/issues/${issueId}/labels/${testLabelId}`)
+                    .set('Authorization', `Bearer ${actorToken}`)
+                    .then((detachRes) => {
+                      if (detachRes.status !== 200) reject(new Error('Detach label failed'));
+                    });
+                } else {
+                  // Received update after detach
+                  expect(payload.issue.labels.some((l: any) => l.id === testLabelId)).toBe(false);
+                  listenerSocket.close();
+                  resolve();
+                }
+              }
+            } catch (err) {
+              reject(err);
+            }
+          });
+
+          // Trigger attach
+          const attachRes = await request(app)
+            .post(`/api/projects/${projectId}/issues/${issueId}/labels`)
+            .set('Authorization', `Bearer ${actorToken}`)
+            .send({ labelId: testLabelId });
+
+          if (attachRes.status !== 200) {
+            reject(new Error(`Attach label failed: ${attachRes.status}`));
+          }
+        });
+      });
+    });
+  });
+
+  it('broadcasts milestone:created, milestone:updated, and recalculates milestone progress on issue status change', () => {
+    return new Promise<void>((resolve, reject) => {
+      const listenerSocket = Client(`http://localhost:${port}`, {
+        auth: { token: listenerToken },
+        transports: ['websocket'],
+      });
+
+      listenerSocket.on('connect', () => {
+        listenerSocket.emit('join:project', { projectId }, async (res: { success?: boolean }) => {
+          if (!res.success) return reject(new Error('Failed to join room'));
+
+          let milestoneId = '';
+
+          listenerSocket.on('milestone:created', (payload) => {
+            try {
+              expect(payload.milestone.name).toBe('Realtime Sprint 1');
+              expect(payload.milestone.progress).toBe(0);
+              milestoneId = payload.milestone.id;
+
+              // Once milestone is created, create an issue attached to it
+              listenerSocket.on('milestone:updated', (mUpdatePayload) => {
+                try {
+                  if (mUpdatePayload.milestone.id === milestoneId) {
+                    if (mUpdatePayload.milestone.completedIssues === 1) {
+                      expect(mUpdatePayload.milestone.progress).toBe(100);
+                      listenerSocket.close();
+                      resolve();
+                    }
+                  }
+                } catch (err) {
+                  reject(err);
+                }
+              });
+
+              // Create issue assigned to milestone, then move to DONE
+              request(app)
+                .post(`/api/projects/${projectId}/issues`)
+                .set('Authorization', `Bearer ${actorToken}`)
+                .send({ title: 'Milestone Task', status: 'TODO', milestoneId })
+                .then((issueRes) => {
+                  if (issueRes.status !== 201) {
+                    return reject(new Error(`Failed to create issue for milestone: ${JSON.stringify(issueRes.body)}`));
+                  }
+                  const mIssueId = issueRes.body.issue.id;
+                  // Move issue to DONE to trigger milestone progress update
+                  request(app)
+                    .patch(`/api/projects/${projectId}/issues/${mIssueId}/move`)
+                    .set('Authorization', `Bearer ${actorToken}`)
+                    .send({ status: 'DONE', position: 0 })
+                    .then((moveRes) => {
+                      if (moveRes.status !== 200) {
+                        reject(new Error(`Failed to move issue: ${JSON.stringify(moveRes.body)}`));
+                      }
+                    })
+                    .catch(reject);
+                })
+                .catch(reject);
+            } catch (err) {
+              reject(err);
+            }
+          });
+
+          // Trigger milestone creation
+          const mRes = await request(app)
+            .post(`/api/projects/${projectId}/milestones`)
+            .set('Authorization', `Bearer ${actorToken}`)
+            .send({ name: 'Realtime Sprint 1' });
+
+          if (mRes.status !== 201) {
+            reject(new Error(`Failed to create milestone: ${mRes.status}`));
+          }
+        });
+      });
+    });
+  });
+
+  it('enforces multi-tenant project room isolation (client in Project 2 does not receive Project 1 events)', () => {
+    return new Promise<void>((resolve, reject) => {
+      // Create Project 2 in same workspace and add listener
+      prisma.project.create({
+        data: { workspaceId, name: 'Project 2 Isolation' }
+      }).then(async (p2) => {
+        await prisma.projectMember.create({
+          data: { projectId: p2.id, workspaceId, userId: listenerId, role: 'MEMBER' }
+        });
+
+        const p2Socket = Client(`http://localhost:${port}`, {
+          auth: { token: listenerToken },
+          transports: ['websocket'],
+        });
+
+        p2Socket.on('connect', () => {
+          // p2Socket joins Project 2 room ONLY
+          p2Socket.emit('join:project', { projectId: p2.id }, async (joinRes: { success?: boolean }) => {
+            if (!joinRes.success) return reject(new Error('Failed to join Project 2'));
+
+            let receivedEventForP1 = false;
+
+            p2Socket.on('issue:created', (payload) => {
+              if (payload?.issue?.projectId === projectId) {
+                receivedEventForP1 = true;
+              }
+            });
+
+            // Trigger an issue creation in Project 1
+            await request(app)
+              .post(`/api/projects/${projectId}/issues`)
+              .set('Authorization', `Bearer ${actorToken}`)
+              .send({ title: 'Isolation Test Issue' });
+
+            // Wait 400ms to verify no leakage
+            setTimeout(() => {
+              p2Socket.close();
+              if (receivedEventForP1) {
+                reject(new Error('Cross-project room leakage detected!'));
+              } else {
+                resolve();
+              }
+            }, 400);
+          });
+        });
+      }).catch(reject);
+    });
+  });
 });
+
