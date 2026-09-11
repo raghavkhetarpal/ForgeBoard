@@ -9,16 +9,18 @@ type IssueWithRelations = Prisma.IssueGetPayload<{
     assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } };
     labels: { include: { label: true } };
     pullRequests: true;
+    milestone: true;
   }
 }>;
 
 function mapIssue(issue: IssueWithRelations): IssueDto {
-  const { labels, assignee, pullRequests, ...rest } = issue;
+  const { labels, assignee, pullRequests, milestone, ...rest } = issue;
   return {
     ...rest,
     assignee: assignee ?? undefined,
     labels: labels.map(il => il.label),
     pullRequests: pullRequests ?? [],
+    milestone: milestone ?? undefined,
   };
 }
 
@@ -31,6 +33,7 @@ export class IssuesRepository {
         assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
         labels: { include: { label: true } },
         pullRequests: true,
+        milestone: true,
       }
     }); return mapIssue(issue);
   }
@@ -43,16 +46,18 @@ export class IssuesRepository {
         assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
         labels: { include: { label: true } },
         pullRequests: true,
+        milestone: true,
       }
     }); return issue ? mapIssue(issue) : null;
   }
 
-  async findMany(projectId: string, filters: { status?: string, priority?: string, assigneeId?: string }): Promise<IssueDto[]> {
+  async findMany(projectId: string, filters: { status?: string, priority?: string, assigneeId?: string, milestoneId?: string }): Promise<IssueDto[]> {
     const where: Prisma.IssueWhereInput = { projectId };
     
     if (filters.status) where.status = filters.status as Prisma.EnumIssueStatusFilter;
     if (filters.priority) where.priority = filters.priority as Prisma.EnumIssuePriorityFilter;
     if (filters.assigneeId) where.assigneeId = filters.assigneeId;
+    if (filters.milestoneId) where.milestoneId = filters.milestoneId;
 
     const issues = await prisma.issue.findMany({
       where,
@@ -65,6 +70,7 @@ export class IssuesRepository {
         assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
         labels: { include: { label: true } },
         pullRequests: true,
+        milestone: true,
       }
     }); return issues.map(mapIssue);
   }
@@ -78,6 +84,7 @@ export class IssuesRepository {
         assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
         labels: { include: { label: true } },
         pullRequests: true,
+        milestone: true,
       }
     }); return mapIssue(issue);
   }

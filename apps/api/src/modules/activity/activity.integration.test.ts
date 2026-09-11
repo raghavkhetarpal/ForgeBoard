@@ -22,7 +22,7 @@ describe('Activity Module Integration Tests', () => {
     });
     actorId = user.id;
 
-    const session = await createSession(user.id);
+    const session = await createSession(user.id, user.email);
     memberToken = session.sessionId;
 
     const workspace = await prisma.workspace.create({

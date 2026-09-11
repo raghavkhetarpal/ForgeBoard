@@ -95,6 +95,7 @@ model Project {
   members            ProjectMember[]
   issues             Issue[]
   labels             Label[]
+  milestones         Milestone[]
   githubIntegration  GithubIntegration?
   githubRepositories GithubRepository[]
   Activity           Activity[]
@@ -158,6 +159,8 @@ model Issue {
   project      Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   creator      User               @relation("IssueCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   assignee     User?              @relation("IssueAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  milestoneId  String?            @map("milestone_id")
+  milestone    Milestone?         @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
   labels       IssueLabel[]
   comments     Comment[]
   pullRequests IssuePullRequest[]
@@ -166,6 +169,7 @@ model Issue {
   @@index([assigneeId])
   @@index([priority])
   @@index([workspaceId])
+  @@index([milestoneId])
   @@map("issues")
 }
 
@@ -195,6 +199,30 @@ model IssueLabel {
   @@index([issueId])
   @@index([labelId])
   @@map("issue_labels")
+}
+
+enum MilestoneStatus {
+  OPEN
+  CLOSED
+}
+
+model Milestone {
+  id          String          @id @default(cuid())
+  projectId   String          @map("project_id")
+  name        String
+  description String?
+  status      MilestoneStatus @default(OPEN)
+  startDate   DateTime?       @map("start_date")
+  dueDate     DateTime?       @map("due_date")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issues  Issue[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("milestones")
 }
 
 model Comment {

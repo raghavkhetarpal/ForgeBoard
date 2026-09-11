@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { FormError } from '@/components/ui/FormError';
 import { apiFetch, ApiError } from '@/lib/api';
-import { IssueDto, IssueStatus, IssuePriority } from '@forgeboard/types';
+import { IssueDto, IssueStatus, IssuePriority, MilestoneWithProgressDto } from '@forgeboard/types';
+import { Flag } from 'lucide-react';
 
 interface CreateIssueModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface CreateIssueModalProps {
   projectId: string;
   initialStatus?: IssueStatus;
   onIssueCreated: (issue: IssueDto) => void;
+  milestones?: MilestoneWithProgressDto[];
 }
 
 interface CreateIssueResponse {
@@ -42,12 +44,14 @@ export function CreateIssueModal({
   projectId,
   initialStatus = 'TODO',
   onIssueCreated,
+  milestones = [],
 }: CreateIssueModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<IssueStatus>(initialStatus);
   const [priority, setPriority] = useState<IssuePriority>('MEDIUM');
   const [dueDate, setDueDate] = useState('');
+  const [milestoneId, setMilestoneId] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -63,6 +67,7 @@ export function CreateIssueModal({
     setStatus(initialStatus);
     setPriority('MEDIUM');
     setDueDate('');
+    setMilestoneId('');
     setError('');
     setIsSubmitting(false);
   };
@@ -91,12 +96,14 @@ export function CreateIssueModal({
         status: IssueStatus;
         priority: IssuePriority;
         dueDate?: string | null;
+        milestoneId?: string | null;
       } = {
         title: trimmedTitle,
         description: description.trim() || null,
         status,
         priority,
         dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+        milestoneId: milestoneId ? milestoneId : null,
       };
 
       const res = await apiFetch<CreateIssueResponse>(
@@ -210,17 +217,43 @@ export function CreateIssueModal({
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <label htmlFor="issue-due" className="text-sm font-medium text-foreground">
-            Due Date <span className="text-xs text-foreground/50 font-normal">(Optional)</span>
-          </label>
-          <Input
-            id="issue-due"
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            disabled={isSubmitting}
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label htmlFor="issue-due" className="text-sm font-medium text-foreground">
+              Due Date <span className="text-xs text-foreground/50 font-normal">(Optional)</span>
+            </label>
+            <Input
+              id="issue-due"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="issue-milestone" className="text-sm font-medium text-foreground flex items-center gap-1.5">
+              <Flag className="h-3.5 w-3.5 text-primary" />
+              <span>Milestone</span>
+              <span className="text-xs text-foreground/50 font-normal">(Optional)</span>
+            </label>
+            <select
+              id="issue-milestone"
+              className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+              value={milestoneId}
+              onChange={(e) => setMilestoneId(e.target.value)}
+              disabled={isSubmitting}
+            >
+              <option value="">None (No milestone)</option>
+              {milestones
+                .filter((m) => m.status === 'OPEN')
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+            </select>
+          </div>
         </div>
 
         <div className="flex items-center justify-end space-x-3 pt-4 border-t border-border">

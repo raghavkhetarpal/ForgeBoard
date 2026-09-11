@@ -7,6 +7,7 @@ import {
   IssueStatus,
   WorkspaceMemberDto,
   LabelDto,
+  MilestoneWithProgressDto,
   IssueCreatedSocketEvent,
   IssueUpdatedSocketEvent,
   IssueDeletedSocketEvent,
@@ -66,6 +67,7 @@ export function KanbanBoard({
 }: KanbanBoardProps) {
   const [issues, setIssues] = useState<IssueDto[]>([]);
   const [labels, setLabels] = useState<LabelDto[]>([]);
+  const [milestones, setMilestones] = useState<MilestoneWithProgressDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -74,6 +76,7 @@ export function KanbanBoard({
   const [searchQuery, setSearchQuery] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
   const [labelFilter, setLabelFilter] = useState<string>('ALL');
+  const [milestoneFilter, setMilestoneFilter] = useState<string>('ALL');
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -94,14 +97,18 @@ export function KanbanBoard({
     setActionError(null);
 
     try {
-      const [issuesRes, labelsRes] = await Promise.all([
+      const [issuesRes, labelsRes, milestonesRes] = await Promise.all([
         apiFetch<ListIssuesResponse>(`/projects/${projectId}/issues`),
         apiFetch<ListLabelsResponse>(`/projects/${projectId}/labels`).catch(
           () => ({ labels: [] })
         ),
+        apiFetch<{ milestones: MilestoneWithProgressDto[] }>(
+          `/projects/${projectId}/milestones`
+        ).catch(() => ({ milestones: [] })),
       ]);
       setIssues(issuesRes.issues || []);
       setLabels(labelsRes.labels || []);
+      setMilestones(milestonesRes.milestones || []);
     } catch (err: unknown) {
       if (err instanceof ApiError) {
         if (err.status === 403) {
@@ -310,9 +317,16 @@ export function KanbanBoard({
           return false;
         }
       }
+      if (milestoneFilter !== 'ALL') {
+        if (milestoneFilter === 'NO_MILESTONE') {
+          if (issue.milestoneId) return false;
+        } else if (issue.milestoneId !== milestoneFilter) {
+          return false;
+        }
+      }
       return true;
     });
-  }, [issues, searchQuery, priorityFilter, labelFilter]);
+  }, [issues, searchQuery, priorityFilter, labelFilter, milestoneFilter]);
 
   if (loading) {
     return (
@@ -397,6 +411,20 @@ export function KanbanBoard({
               {labels.map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={milestoneFilter}
+              onChange={(e) => setMilestoneFilter(e.target.value)}
+              className="h-9 rounded-md border border-border bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary max-w-[140px]"
+            >
+              <option value="ALL">All Milestones</option>
+              <option value="NO_MILESTONE">No Milestone</option>
+              {milestones.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
                 </option>
               ))}
             </select>
@@ -490,6 +518,7 @@ export function KanbanBoard({
         projectId={projectId}
         initialStatus={createInitialStatus}
         onIssueCreated={handleIssueCreated}
+        milestones={milestones}
       />
 
       <IssueDetailModal
@@ -508,6 +537,7 @@ export function KanbanBoard({
         isProjectAdmin={isProjectAdmin}
         projectLabels={labels}
         onOpenManageLabels={() => setIsManageLabelsModalOpen(true)}
+        milestones={milestones}
       />
 
       <ManageLabelsModal

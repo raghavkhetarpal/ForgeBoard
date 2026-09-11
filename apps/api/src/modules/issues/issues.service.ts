@@ -4,6 +4,7 @@ import { activityService } from '../activity/activity.service';
 import { IssueDto } from '@forgeboard/types';
 import { Prisma } from '@prisma/client';
 import { getSocketServer } from '../../infrastructure/socket';
+import prisma from '../../infrastructure/prisma';
 
 export class IssuesService {
   async createIssue(projectId: string, workspaceId: string, creatorId: string, data: Omit<Prisma.IssueUncheckedCreateInput, 'workspaceId' | 'projectId' | 'creatorId'>): Promise<IssueDto> {
@@ -11,6 +12,13 @@ export class IssuesService {
       const isValidAssignee = await issuesRepository.isProjectMember(projectId, data.assigneeId);
       if (!isValidAssignee) {
         throw new AppError('Assignee must be a member of the project.', 400, 'BAD_REQUEST');
+      }
+    }
+
+    if (data.milestoneId) {
+      const milestone = await prisma.milestone.findUnique({ where: { id: data.milestoneId } });
+      if (!milestone || milestone.projectId !== projectId) {
+        throw new AppError('Milestone not found or belongs to another project', 400, 'BAD_REQUEST');
       }
     }
 
@@ -51,7 +59,7 @@ export class IssuesService {
     return issue;
   }
 
-  async listIssues(projectId: string, filters: { status?: string, priority?: string, assigneeId?: string }): Promise<IssueDto[]> {
+  async listIssues(projectId: string, filters: { status?: string, priority?: string, assigneeId?: string, milestoneId?: string }): Promise<IssueDto[]> {
     return issuesRepository.findMany(projectId, filters);
   }
 
@@ -65,6 +73,13 @@ export class IssuesService {
       const isValidAssignee = await issuesRepository.isProjectMember(projectId, data.assigneeId);
       if (!isValidAssignee) {
         throw new AppError('Assignee must be a member of the project.', 400, 'BAD_REQUEST');
+      }
+    }
+
+    if (data.milestoneId && typeof data.milestoneId === 'string' && data.milestoneId !== issue.milestoneId) {
+      const milestone = await prisma.milestone.findUnique({ where: { id: data.milestoneId } });
+      if (!milestone || milestone.projectId !== projectId) {
+        throw new AppError('Milestone not found or belongs to another project', 400, 'BAD_REQUEST');
       }
     }
 

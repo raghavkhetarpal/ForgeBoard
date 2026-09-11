@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { FormError } from '@/components/ui/FormError';
 import { apiFetch, ApiError } from '@/lib/api';
-import { IssueDto, IssueStatus, IssuePriority, WorkspaceMemberDto, LabelDto, IssuePullRequestDto, GithubRepositoryDto, GithubPullRequestDto } from '@forgeboard/types';
+import { IssueDto, IssueStatus, IssuePriority, WorkspaceMemberDto, LabelDto, IssuePullRequestDto, GithubRepositoryDto, GithubPullRequestDto, MilestoneWithProgressDto } from '@forgeboard/types';
 import { CommentsSection } from '@/components/comments/CommentsSection';
-import { Trash2, Clock, Calendar, User as UserIcon, Tag, Plus, X, GitPullRequest, ExternalLink, Loader2 } from 'lucide-react';
+import { Trash2, Clock, Calendar, User as UserIcon, Tag, Plus, X, GitPullRequest, ExternalLink, Loader2, Flag } from 'lucide-react';
 
 interface IssueDetailModalProps {
   isOpen: boolean;
@@ -23,6 +23,7 @@ interface IssueDetailModalProps {
   isProjectAdmin?: boolean;
   projectLabels?: LabelDto[];
   onOpenManageLabels?: () => void;
+  milestones?: MilestoneWithProgressDto[];
 }
 
 interface UpdateIssueResponse {
@@ -58,12 +59,14 @@ export function IssueDetailModal({
   isProjectAdmin = false,
   projectLabels = [],
   onOpenManageLabels,
+  milestones = [],
 }: IssueDetailModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<IssueStatus>('TODO');
   const [priority, setPriority] = useState<IssuePriority>('MEDIUM');
   const [dueDate, setDueDate] = useState('');
+  const [milestoneId, setMilestoneId] = useState('');
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -99,6 +102,7 @@ export function IssueDetailModal({
           ? new Date(issue.dueDate).toISOString().substring(0, 10)
           : ''
       );
+      setMilestoneId(issue.milestoneId || '');
       setAttachedLabels(issue.labels || []);
       setAttachedPrs(issue.pullRequests || []);
       setError('');
@@ -287,12 +291,14 @@ export function IssueDetailModal({
         status: IssueStatus;
         priority: IssuePriority;
         dueDate: string | null;
+        milestoneId: string | null;
       } = {
         title: trimmedTitle,
         description: description.trim() || null,
         status,
         priority,
         dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+        milestoneId: milestoneId ? milestoneId : null,
       };
 
       const res = await apiFetch<UpdateIssueResponse>(
@@ -438,18 +444,41 @@ export function IssueDetailModal({
           </div>
         </div>
 
-        {/* Due Date */}
-        <div className="space-y-1.5">
-          <label htmlFor="edit-due" className="text-sm font-medium text-foreground">
-            Due Date
-          </label>
-          <Input
-            id="edit-due"
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            disabled={!canEdit || isSaving || isDeleting}
-          />
+        {/* Due Date & Milestone */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label htmlFor="edit-due" className="text-sm font-medium text-foreground">
+              Due Date
+            </label>
+            <Input
+              id="edit-due"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              disabled={!canEdit || isSaving || isDeleting}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="edit-milestone" className="text-sm font-medium text-foreground flex items-center gap-1.5">
+              <Flag className="h-3.5 w-3.5 text-primary" />
+              <span>Milestone</span>
+            </label>
+            <select
+              id="edit-milestone"
+              className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+              value={milestoneId}
+              onChange={(e) => setMilestoneId(e.target.value)}
+              disabled={!canEdit || isSaving || isDeleting}
+            >
+              <option value="">None (No milestone)</option>
+              {milestones.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name} ({m.status.toLowerCase()})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Labels Section */}

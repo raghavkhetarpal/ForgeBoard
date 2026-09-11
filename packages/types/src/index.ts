@@ -146,6 +146,50 @@ export interface IssuePullRequestDto {
   linkedAt: Date | string;
 }
 
+// Milestone Status Enum
+export type MilestoneStatus = 'OPEN' | 'CLOSED';
+
+export const MILESTONE_STATUSES: Record<MilestoneStatus, MilestoneStatus> = {
+  OPEN: 'OPEN',
+  CLOSED: 'CLOSED',
+};
+
+// Milestone DTO
+export interface MilestoneDto {
+  id: string;
+  projectId: string;
+  name: string;
+  description: string | null;
+  status: MilestoneStatus;
+  startDate: Date | string | null;
+  dueDate: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface MilestoneWithProgressDto extends MilestoneDto {
+  totalIssues: number;
+  completedIssues: number;
+  openIssues: number;
+  progress: number;
+}
+
+export interface CreateMilestoneInput {
+  name: string;
+  description?: string | null;
+  status?: MilestoneStatus;
+  startDate?: string | null;
+  dueDate?: string | null;
+}
+
+export interface UpdateMilestoneInput {
+  name?: string;
+  description?: string | null;
+  status?: MilestoneStatus;
+  startDate?: string | null;
+  dueDate?: string | null;
+}
+
 // Issue DTO
 export interface IssueDto {
   id: string;
@@ -153,6 +197,7 @@ export interface IssueDto {
   projectId: string;
   creatorId: string;
   assigneeId: string | null;
+  milestoneId?: string | null;
   title: string;
   description: string | null;
   status: IssueStatus;
@@ -163,6 +208,7 @@ export interface IssueDto {
   updatedAt: Date | string;
   creator?: UserDto;
   assignee?: UserDto;
+  milestone?: MilestoneDto | null;
   labels?: LabelDto[];
   comments?: CommentDto[];
   pullRequests?: IssuePullRequestDto[];
@@ -184,6 +230,7 @@ export interface CreateIssueInput {
   status?: IssueStatus;
   priority?: IssuePriority;
   assigneeId?: string | null;
+  milestoneId?: string | null;
   dueDate?: string | null;
 }
 
@@ -193,6 +240,7 @@ export interface UpdateIssueInput {
   status?: IssueStatus;
   priority?: IssuePriority;
   assigneeId?: string | null;
+  milestoneId?: string | null;
   dueDate?: string | null;
 }
 

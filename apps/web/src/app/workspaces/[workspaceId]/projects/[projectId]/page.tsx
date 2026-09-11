@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { apiFetch, ApiError } from '@/lib/api';
 import { ProjectDto, WorkspaceDto, WorkspaceMemberDto } from '@forgeboard/types';
 import { KanbanBoard } from '@/components/kanban/KanbanBoard';
+import { ProjectMilestones } from '@/components/milestones/ProjectMilestones';
 import { ProjectActivityFeed } from '@/components/activity/ProjectActivityFeed';
 import { ProjectGithubSettings } from '@/components/github/ProjectGithubSettings';
 import {
@@ -18,6 +19,7 @@ import {
   Clock,
   Calendar,
   Layers,
+  Flag,
   Activity as ActivityIcon,
   Settings as SettingsIcon,
   Info,
@@ -36,7 +38,7 @@ interface WorkspaceDetailResponse {
   members: WorkspaceMemberDto[];
 }
 
-type TabType = 'overview' | 'board' | 'activity' | 'settings';
+type TabType = 'overview' | 'board' | 'milestones' | 'activity' | 'settings';
 
 const STATUS_COLORS: Record<string, string> = {
   PLANNING: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
@@ -65,7 +67,7 @@ export default function ProjectPage() {
   // Sync tab from query parameters if present (e.g. from OAuth redirect)
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'settings' || tab === 'board' || tab === 'overview' || tab === 'activity') {
+    if (tab === 'settings' || tab === 'board' || tab === 'overview' || tab === 'activity' || tab === 'milestones') {
       setActiveTab(tab as TabType);
     } else if (searchParams.get('github')) {
       setActiveTab('settings');
@@ -260,6 +262,19 @@ export default function ProjectPage() {
 
                 <button
                   type="button"
+                  onClick={() => setActiveTab('milestones')}
+                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
+                    activeTab === 'milestones'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-foreground/70 hover:text-foreground hover:bg-foreground/5'
+                  }`}
+                >
+                  <Flag className="h-4 w-4" />
+                  <span>Milestones</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setActiveTab('activity')}
                   className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
                     activeTab === 'activity'
@@ -392,6 +407,15 @@ export default function ProjectPage() {
                 isProjectAdmin={
                   members.find((m) => m.userId === user?.id)?.role === 'OWNER' ||
                   members.find((m) => m.userId === user?.id)?.role === 'ADMIN'
+                }
+              />
+            )}
+
+            {activeTab === 'milestones' && (
+              <ProjectMilestones
+                projectId={projectId}
+                canMutateMilestones={
+                  members.find((m) => m.userId === user?.id)?.role !== 'VIEWER'
                 }
               />
             )}

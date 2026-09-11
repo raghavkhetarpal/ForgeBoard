@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { IssueDto, IssuePriority } from '@forgeboard/types';
-import { Clock, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, GitPullRequest } from 'lucide-react';
+import { Clock, AlertTriangle, ArrowUp, ArrowRight, ArrowDown, GitPullRequest, Flag } from 'lucide-react';
 
 interface KanbanCardProps {
   issue: IssueDto;
@@ -120,6 +120,15 @@ export function KanbanCard({ issue, index, onClick, onDragStart }: KanbanCardPro
               </span>
             </span>
           ))}
+        </div>
+      )}
+
+      {issue.milestone && (
+        <div className="flex items-center gap-1 text-[11px] font-medium text-amber-800 dark:text-amber-300">
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 truncate max-w-full">
+            <Flag className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span className="truncate">{issue.milestone.name}</span>
+          </span>
         </div>
       )}
 

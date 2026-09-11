@@ -18,7 +18,7 @@ describe('Webhooks Module Integration Tests', () => {
   const WEBHOOK_SECRET = 'test_secret_for_webhooks';
   
   beforeAll(async () => {
-    vi.spyOn(global, 'fetch').mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+    vi.spyOn(global, 'fetch').mockImplementation(async (_input: unknown, _init?: unknown) => {
       // Mock GitHub API PR response
       return {
         ok: true,
@@ -45,7 +45,7 @@ describe('Webhooks Module Integration Tests', () => {
       },
     });
 
-    const session = await createSession(user.id);
+    const session = await createSession(user.id, user.email);
     memberToken = session.sessionId;
 
     const workspace = await prisma.workspace.create({

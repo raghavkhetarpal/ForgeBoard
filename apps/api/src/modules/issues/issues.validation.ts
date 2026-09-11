@@ -6,6 +6,7 @@ export const createIssueSchema = z.object({
   status: z.enum(['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED']).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
   assigneeId: z.string().optional().nullable(),
+  milestoneId: z.string().optional().nullable(),
   dueDate: z.string().datetime().optional().nullable(),
 });
 
@@ -15,6 +16,7 @@ export const updateIssueSchema = z.object({
   status: z.enum(['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED']).optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
   assigneeId: z.string().optional().nullable(),
+  milestoneId: z.string().optional().nullable(),
   dueDate: z.string().datetime().optional().nullable(),
 });
 
@@ -22,6 +24,7 @@ export const listIssuesSchema = z.object({
   status: z.string().optional(),
   priority: z.string().optional(),
   assigneeId: z.string().optional(),
+  milestoneId: z.string().optional(),
 });
 
 export const moveIssueSchema = z.object({
