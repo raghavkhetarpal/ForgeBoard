@@ -3,7 +3,7 @@ import { generateTestUser, registerUser, createWorkspace, createProject } from '
 import { randomUUID } from 'crypto';
 
 test.describe('Collaboration, Mentions, Labels & Milestones', () => {
-  test('should create comments, attach labels, and manage milestones', async ({ page }) => {
+  test('should create comments, edit/delete comments, attach labels, and manage milestones', async ({ page }) => {
     const user = generateTestUser();
     await registerUser(page, user);
 
@@ -51,23 +51,36 @@ test.describe('Collaboration, Mentions, Labels & Milestones', () => {
     await page.click(`button:has-text("${labelName}")`);
     await expect(page.locator(`span:has-text("${labelName}")`).first()).toBeVisible({ timeout: 10000 });
 
-    // 7. Add a comment
-    const commentText = `Great progress on this feature ticket! Testing mention @${user.email}`;
+    // 7. Add a comment with @mention
+    const commentText = `Initial comment for discussion @${user.email}`;
     await page.fill('textarea[placeholder*="Leave a comment"]', commentText);
     await page.click('button:has-text("Comment")');
 
-    // Verify comment appears in comments list
+    // Verify comment appears
     await expect(page.locator(`text="${commentText}"`)).toBeVisible({ timeout: 10000 });
+
+    // 8. Edit the comment
+    await page.click('button[title="Edit comment"]');
+    const updatedCommentText = `Updated comment after review @${user.email}`;
+    const commentEditTextarea = page.locator('[data-testid="comment-edit-textarea"]');
+    await commentEditTextarea.fill(updatedCommentText);
+    await page.locator('[data-testid="comment-save-btn"]').click();
+    await expect(page.locator(`text="${updatedCommentText}"`)).toBeVisible({ timeout: 10000 });
+
+    // 9. Delete the comment
+    await page.click('button[title="Delete comment"]');
+    await page.click('button:has-text("Confirm")');
+    await expect(page.locator(`text="${updatedCommentText}"`)).toHaveCount(0, { timeout: 10000 });
 
     // Close issue modal
     await page.click('button:has-text("Cancel")');
 
-    // 8. Filter board by the created Label
+    // 10. Filter board by the created Label
     const labelFilter = page.locator('select').nth(1); // priorityFilter is 0th, labelFilter is 1st
     await labelFilter.selectOption({ label: labelName });
     await expect(page.locator(`div[role="button"]:has-text("${issueTitle}")`).last()).toBeVisible();
 
-    // 9. Reset filter and switch to Milestones tab to check progress calculation
+    // 11. Reset filter and switch to Milestones tab to check progress calculation
     await labelFilter.selectOption('ALL');
     await page.click('button:has-text("Milestones")');
     await expect(page.locator(`h3:has-text("${milestoneTitle}")`)).toBeVisible();

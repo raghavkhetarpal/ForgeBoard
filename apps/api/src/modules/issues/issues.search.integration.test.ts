@@ -23,7 +23,7 @@ describe('Issues Search, Filtering & Pagination Integration Tests', () => {
   let labelBackendId: string;
   let milestoneId: string;
 
-  let issueIds: string[] = [];
+  const issueIds: string[] = [];
 
   beforeAll(async () => {
     // 1. Create test users

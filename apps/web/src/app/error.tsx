@@ -28,8 +28,13 @@ export default function Error({
             Something went wrong
           </h2>
           <p className="text-xs text-foreground/70 leading-relaxed">
-            {error?.message || 'An unexpected error occurred while loading this page. Our team has been notified.'}
+            An unexpected error occurred while loading this page. Our team has been notified.
           </p>
+          {error?.digest && (
+            <p className="text-xs text-foreground/40 font-mono">
+              Reference: {error.digest}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center justify-center gap-3 pt-2">

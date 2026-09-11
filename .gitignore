@@ -13,6 +13,7 @@ dist/
 build/
 .next/
 out/
+*.tsbuildinfo
 
 # Prisma
 # (migrations ARE committed — do not ignore prisma/migrations)

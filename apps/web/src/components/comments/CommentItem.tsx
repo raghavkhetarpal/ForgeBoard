@@ -177,7 +177,7 @@ export function CommentItem({
 
       {/* Content or Edit Form */}
       {isEditing ? (
-        <form onSubmit={handleSave} className="space-y-2 pt-1">
+        <form onSubmit={handleSave} className="space-y-2 pt-1" data-testid="comment-edit-form">
           <textarea
             rows={3}
             className="flex w-full rounded-md border border-border bg-background px-3 py-2 text-xs placeholder:text-foreground/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
@@ -187,6 +187,7 @@ export function CommentItem({
             maxLength={10000}
             required
             autoFocus
+            data-testid="comment-edit-textarea"
           />
           <div className="flex items-center justify-end space-x-2">
             <Button
@@ -198,7 +199,7 @@ export function CommentItem({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSaving} className="h-7 px-2 text-xs">
+            <Button type="submit" disabled={isSaving} className="h-7 px-2 text-xs" data-testid="comment-save-btn">
               {isSaving ? 'Saving...' : 'Save'}
             </Button>
           </div>

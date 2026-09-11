@@ -149,7 +149,7 @@ describe('Activity Module Integration Tests', () => {
     expect(sameColumnRes.status).toBe(200);
 
     // 3. Verify no ISSUE_STATUS_CHANGED activity exists for that issue yet
-    let statusActs = await prisma.activity.findMany({ where: { targetId: issueId, action: 'ISSUE_STATUS_CHANGED' } });
+    const statusActs = await prisma.activity.findMany({ where: { targetId: issueId, action: 'ISSUE_STATUS_CHANGED' } });
     expect(statusActs).toHaveLength(0);
 
     // 4. Perform cross-column move
