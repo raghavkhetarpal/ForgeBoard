@@ -1,0 +1,134 @@
+# =============================================================================
+# ForgeBoard — Full-Stack Docker Compose (Production-Like)
+# =============================================================================
+# Runs the complete ForgeBoard stack locally in containers.
+#
+# Usage:
+#   # Build and start all services
+#   docker compose -f docker-compose.prod.yml up --build
+#
+#   # Run database migrations (one-time or after schema changes)
+#   docker compose -f docker-compose.prod.yml run --rm api-migrate
+#
+# Environment variables:
+#   Uses .env file in the repository root. Copy .env.example to .env first.
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: forgeboard-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: forgeboard
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d forgeboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Redis
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: forgeboard-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Database Migrations (run-once init container)
+  # ---------------------------------------------------------------------------
+  api-migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: builder
+    working_dir: /app
+    command: npx prisma migrate deploy
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/forgeboard?schema=public"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - migrate
+
+  # ---------------------------------------------------------------------------
+  # Express API
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: forgeboard-api
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/forgeboard?schema=public"
+      REDIS_URL: "redis://redis:6379"
+      SESSION_SECRET: "${SESSION_SECRET:-forgeboard-docker-session-secret-32chars}"
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+      # GITHUB_CLIENT_ID: "${GITHUB_CLIENT_ID}"
+      # GITHUB_CLIENT_SECRET: "${GITHUB_CLIENT_SECRET}"
+      # GITHUB_WEBHOOK_SECRET: "${GITHUB_WEBHOOK_SECRET}"
+      # ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Next.js Frontend
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:4000/api"
+        NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+        NEXT_PUBLIC_SOCKET_URL: "http://localhost:4000"
+    container_name: forgeboard-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      HOSTNAME: "0.0.0.0"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

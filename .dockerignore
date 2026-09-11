@@ -1,0 +1,46 @@
+# Dependencies (will be installed fresh in Docker)
+node_modules
+**/node_modules
+
+# Build output
+dist
+.next
+out
+*.tsbuildinfo
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# Git
+.git
+.gitignore
+
+# IDE / editor
+.vscode
+.idea
+*.swp
+
+# Test artifacts
+test-results
+playwright-report
+blob-report
+coverage
+.nyc_output
+
+# Documentation (not needed in runtime images)
+docs/
+*.md
+!package.json
+
+# Docker
+docker-compose*.yml
+Dockerfile
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Agent state
+.gemini/
