@@ -8,18 +8,19 @@ import { workspaceProjectsRouter, projectRouter } from './modules/projects/proje
 import { AppError } from './infrastructure/errors';
 import http from 'http';
 import { initSocketServer } from './infrastructure/socket';
+import { env } from './infrastructure/env';
 
 dotenv.config({ path: '../../.env' });
 
 const app: Express = express();
 export const httpServer = http.createServer(app);
 initSocketServer(httpServer);
-const port = process.env.PORT || 4000;
-const sessionSecret = process.env.SESSION_SECRET || process.env.JWT_SECRET || 'forgeboard-dev-session-secret';
+const port = env.PORT;
+const sessionSecret = env.SESSION_SECRET;
 
 app.use(
   cors({
-    origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+    origin: env.NEXT_PUBLIC_APP_URL,
     credentials: true,
   }),
 );

@@ -47,7 +47,7 @@ export function WorkspaceSettingsTab({
     setSaveSuccess(false);
 
     try {
-      const res = await apiFetch<{ data: { workspace: WorkspaceDto } }>(
+      const res = await apiFetch<{ workspace?: WorkspaceDto; data?: { workspace?: WorkspaceDto } }>(
         `/workspaces/${workspace.id}`,
         {
           method: 'PATCH',
@@ -55,7 +55,8 @@ export function WorkspaceSettingsTab({
         }
       );
 
-      onWorkspaceUpdate(res.data.workspace);
+      const updatedWs = res.workspace || res.data?.workspace || (res as unknown as WorkspaceDto);
+      onWorkspaceUpdate(updatedWs);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2500);
     } catch (err: unknown) {

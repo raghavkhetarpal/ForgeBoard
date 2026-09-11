@@ -41,6 +41,7 @@ Thumbs.db
 
 # Docker volumes (if any get created locally)
 docker-data/
-# Scratch files
-patch_*.js
-scratch/
+# Playwright
+test-results/
+playwright-report/
+blob-report/
