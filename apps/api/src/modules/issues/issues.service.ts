@@ -1,4 +1,4 @@
-import { issuesRepository } from './issues.repository';
+import { issuesRepository, IssueFilters, PaginatedIssuesResult } from './issues.repository';
 import { AppError } from '../../infrastructure/errors';
 import { activityService } from '../activity/activity.service';
 import { IssueDto } from '@forgeboard/types';
@@ -59,7 +59,7 @@ export class IssuesService {
     return issue;
   }
 
-  async listIssues(projectId: string, filters: { status?: string, priority?: string, assigneeId?: string, milestoneId?: string }): Promise<IssueDto[]> {
+  async listIssues(projectId: string, filters: IssueFilters = {}): Promise<PaginatedIssuesResult> {
     return issuesRepository.findMany(projectId, filters);
   }
 

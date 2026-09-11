@@ -166,6 +166,7 @@ model Issue {
   pullRequests IssuePullRequest[]
 
   @@index([projectId, status, position])
+  @@index([projectId, createdAt(sort: Desc)])
   @@index([assigneeId])
   @@index([priority])
   @@index([workspaceId])

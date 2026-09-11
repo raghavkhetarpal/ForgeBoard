@@ -249,6 +249,32 @@ export interface MoveIssueInput {
   position: number;
 }
 
+export interface PaginationMeta {
+  total: number;
+  limit: number;
+  nextCursor: string | null;
+  hasNextPage: boolean;
+}
+
+export interface PaginatedIssuesResponse {
+  issues: IssueDto[];
+  pagination: PaginationMeta;
+}
+
+export interface IssueQueryFilters {
+  q?: string;
+  status?: IssueStatus | 'ALL';
+  priority?: IssuePriority | 'ALL';
+  assigneeId?: string;
+  labelId?: string;
+  milestoneId?: string;
+  cursor?: string;
+  limit?: number;
+  sortBy?: 'createdAt' | 'updatedAt' | 'priority' | 'position' | 'dueDate' | 'title';
+  sortOrder?: 'asc' | 'desc';
+  all?: boolean;
+}
+
 // Label DTO
 export interface LabelDto {
   id: string;

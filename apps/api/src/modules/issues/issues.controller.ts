@@ -32,8 +32,8 @@ export class IssuesController {
     try {
       const projectId = req.params.projectId;
       const filters = listIssuesSchema.parse(req.query);
-      const issues = await issuesService.listIssues(projectId, filters);
-      res.status(200).json({ issues });
+      const result = await issuesService.listIssues(projectId, filters);
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }

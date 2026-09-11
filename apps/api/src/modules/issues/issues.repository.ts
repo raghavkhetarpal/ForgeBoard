@@ -1,6 +1,25 @@
 import prisma from '../../infrastructure/prisma';
 import { Prisma } from '@prisma/client';
-import { IssueDto } from '@forgeboard/types';
+import { IssueDto, PaginationMeta } from '@forgeboard/types';
+
+export interface IssueFilters {
+  q?: string;
+  status?: string;
+  priority?: string;
+  assigneeId?: string;
+  labelId?: string;
+  milestoneId?: string;
+  cursor?: string;
+  limit?: number;
+  sortBy?: 'createdAt' | 'updatedAt' | 'priority' | 'position' | 'dueDate' | 'title';
+  sortOrder?: 'asc' | 'desc';
+  all?: boolean;
+}
+
+export interface PaginatedIssuesResult {
+  issues: IssueDto[];
+  pagination: PaginationMeta;
+}
 
 
 type IssueWithRelations = Prisma.IssueGetPayload<{
@@ -51,28 +70,129 @@ export class IssuesRepository {
     }); return issue ? mapIssue(issue) : null;
   }
 
-  async findMany(projectId: string, filters: { status?: string, priority?: string, assigneeId?: string, milestoneId?: string }): Promise<IssueDto[]> {
+  async findMany(projectId: string, filters: IssueFilters = {}): Promise<PaginatedIssuesResult> {
     const where: Prisma.IssueWhereInput = { projectId };
-    
-    if (filters.status) where.status = filters.status as Prisma.EnumIssueStatusFilter;
-    if (filters.priority) where.priority = filters.priority as Prisma.EnumIssuePriorityFilter;
-    if (filters.assigneeId) where.assigneeId = filters.assigneeId;
-    if (filters.milestoneId) where.milestoneId = filters.milestoneId;
 
-    const issues = await prisma.issue.findMany({
-      where,
-      orderBy: [
-        { status: 'asc' },
-        { position: 'asc' },
-      ],
-      include: {
-        creator: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
-        assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
-        labels: { include: { label: true } },
-        pullRequests: true,
-        milestone: true,
+    if (filters.q && filters.q.trim().length > 0) {
+      const searchTerm = filters.q.trim();
+      where.OR = [
+        { title: { contains: searchTerm, mode: 'insensitive' } },
+        { description: { contains: searchTerm, mode: 'insensitive' } },
+      ];
+    }
+
+    if (filters.status && filters.status !== 'ALL') {
+      where.status = filters.status as Prisma.EnumIssueStatusFilter;
+    }
+
+    if (filters.priority && filters.priority !== 'ALL') {
+      where.priority = filters.priority as Prisma.EnumIssuePriorityFilter;
+    }
+
+    if (filters.assigneeId && filters.assigneeId !== 'ALL') {
+      if (filters.assigneeId === 'UNASSIGNED' || filters.assigneeId === 'none') {
+        where.assigneeId = null;
+      } else {
+        where.assigneeId = filters.assigneeId;
       }
-    }); return issues.map(mapIssue);
+    }
+
+    if (filters.labelId && filters.labelId !== 'ALL') {
+      where.labels = {
+        some: {
+          labelId: filters.labelId,
+        },
+      };
+    }
+
+    if (filters.milestoneId && filters.milestoneId !== 'ALL') {
+      if (filters.milestoneId === 'NO_MILESTONE' || filters.milestoneId === 'none') {
+        where.milestoneId = null;
+      } else {
+        where.milestoneId = filters.milestoneId;
+      }
+    }
+
+    const sortBy = filters.sortBy || (filters.all ? 'position' : 'createdAt');
+    const sortOrder = filters.sortOrder || (sortBy === 'position' || sortBy === 'title' ? 'asc' : 'desc');
+
+    const orderBy: Prisma.IssueOrderByWithRelationInput[] = [
+      { [sortBy]: sortOrder },
+      { id: sortOrder },
+    ];
+
+    const total = await prisma.issue.count({ where });
+
+    const isPaginated = !filters.all && (filters.limit !== undefined || filters.cursor !== undefined);
+
+    const issueInclude = {
+      creator: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
+      assignee: { select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true } },
+      labels: { include: { label: true } },
+      pullRequests: true,
+      milestone: true,
+    };
+
+    if (!isPaginated) {
+      const issues = await prisma.issue.findMany({
+        where,
+        orderBy: filters.sortBy ? orderBy : [
+          { status: 'asc' },
+          { position: 'asc' },
+          { id: 'asc' },
+        ],
+        include: issueInclude,
+      });
+
+      return {
+        issues: issues.map(mapIssue),
+        pagination: {
+          total,
+          limit: issues.length,
+          nextCursor: null,
+          hasNextPage: false,
+        },
+      };
+    }
+
+    const limit = filters.limit ? Math.min(Math.max(filters.limit, 1), 200) : 50;
+
+    let issuesWithExtra: IssueWithRelations[];
+    try {
+      issuesWithExtra = await prisma.issue.findMany({
+        where,
+        take: limit + 1,
+        ...(filters.cursor ? { cursor: { id: filters.cursor }, skip: 1 } : {}),
+        orderBy,
+        include: issueInclude,
+      });
+    } catch (err: any) {
+      // If cursor record not found (P2025), fallback to fetching first page
+      if (err?.code === 'P2025') {
+        issuesWithExtra = await prisma.issue.findMany({
+          where,
+          take: limit + 1,
+          orderBy,
+          include: issueInclude,
+        });
+      } else {
+        throw err;
+      }
+    }
+
+    const hasNextPage = issuesWithExtra.length > limit;
+    const pageIssues = hasNextPage ? issuesWithExtra.slice(0, limit) : issuesWithExtra;
+    const nextCursor = hasNextPage && pageIssues.length > 0 ? pageIssues[pageIssues.length - 1].id : null;
+
+    return {
+      issues: pageIssues.map(mapIssue),
+      pagination: {
+        total,
+        limit,
+        nextCursor,
+        hasNextPage,
+      },
+    };
   }
 
   async update(id: string, data: Prisma.IssueUncheckedUpdateInput): Promise<IssueDto> {

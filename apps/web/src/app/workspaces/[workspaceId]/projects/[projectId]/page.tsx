@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { apiFetch, ApiError } from '@/lib/api';
 import { ProjectDto, WorkspaceDto, WorkspaceMemberDto } from '@forgeboard/types';
 import { KanbanBoard } from '@/components/kanban/KanbanBoard';
+import { ProjectIssuesList } from '@/components/issues/ProjectIssuesList';
 import { ProjectMilestones } from '@/components/milestones/ProjectMilestones';
 import { ProjectActivityFeed } from '@/components/activity/ProjectActivityFeed';
 import { ProjectGithubSettings } from '@/components/github/ProjectGithubSettings';
@@ -19,6 +20,7 @@ import {
   Clock,
   Calendar,
   Layers,
+  ListFilter,
   Flag,
   Activity as ActivityIcon,
   Settings as SettingsIcon,
@@ -38,7 +40,7 @@ interface WorkspaceDetailResponse {
   members: WorkspaceMemberDto[];
 }
 
-type TabType = 'overview' | 'board' | 'milestones' | 'activity' | 'settings';
+type TabType = 'overview' | 'board' | 'issues' | 'milestones' | 'activity' | 'settings';
 
 const STATUS_COLORS: Record<string, string> = {
   PLANNING: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
@@ -67,7 +69,7 @@ export default function ProjectPage() {
   // Sync tab from query parameters if present (e.g. from OAuth redirect)
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'settings' || tab === 'board' || tab === 'overview' || tab === 'activity' || tab === 'milestones') {
+    if (tab === 'settings' || tab === 'board' || tab === 'issues' || tab === 'overview' || tab === 'activity' || tab === 'milestones') {
       setActiveTab(tab as TabType);
     } else if (searchParams.get('github')) {
       setActiveTab('settings');
@@ -262,6 +264,19 @@ export default function ProjectPage() {
 
                 <button
                   type="button"
+                  onClick={() => setActiveTab('issues')}
+                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
+                    activeTab === 'issues'
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-foreground/70 hover:text-foreground hover:bg-foreground/5'
+                  }`}
+                >
+                  <ListFilter className="h-4 w-4" />
+                  <span>Issues</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setActiveTab('milestones')}
                   className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 ${
                     activeTab === 'milestones'
@@ -398,6 +413,21 @@ export default function ProjectPage() {
 
             {activeTab === 'board' && (
               <KanbanBoard
+                projectId={projectId}
+                canMutateIssues={
+                  members.find((m) => m.userId === user?.id)?.role !== 'VIEWER'
+                }
+                members={members}
+                currentUserId={user?.id}
+                isProjectAdmin={
+                  members.find((m) => m.userId === user?.id)?.role === 'OWNER' ||
+                  members.find((m) => m.userId === user?.id)?.role === 'ADMIN'
+                }
+              />
+            )}
+
+            {activeTab === 'issues' && (
+              <ProjectIssuesList
                 projectId={projectId}
                 canMutateIssues={
                   members.find((m) => m.userId === user?.id)?.role !== 'VIEWER'

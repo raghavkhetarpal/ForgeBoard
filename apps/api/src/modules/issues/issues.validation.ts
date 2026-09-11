@@ -21,11 +21,20 @@ export const updateIssueSchema = z.object({
 });
 
 export const listIssuesSchema = z.object({
+  q: z.string().trim().max(100).optional(),
   status: z.string().optional(),
   priority: z.string().optional(),
   assigneeId: z.string().optional(),
+  labelId: z.string().optional(),
   milestoneId: z.string().optional(),
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  sortBy: z.enum(['createdAt', 'updatedAt', 'priority', 'position', 'dueDate', 'title']).optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+  all: z.preprocess((val) => val === 'true' || val === true, z.boolean()).optional(),
 });
+
+export type ListIssuesQuery = z.infer<typeof listIssuesSchema>;
 
 export const moveIssueSchema = z.object({
   status: z.enum(['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', 'CANCELLED']),

@@ -8,6 +8,7 @@ import {
   WorkspaceMemberDto,
   LabelDto,
   MilestoneWithProgressDto,
+  PaginationMeta,
   IssueCreatedSocketEvent,
   IssueUpdatedSocketEvent,
   IssueDeletedSocketEvent,
@@ -39,6 +40,7 @@ interface KanbanBoardProps {
 
 interface ListIssuesResponse {
   issues: IssueDto[];
+  pagination?: PaginationMeta;
 }
 
 interface ListLabelsResponse {
@@ -98,7 +100,7 @@ export function KanbanBoard({
 
     try {
       const [issuesRes, labelsRes, milestonesRes] = await Promise.all([
-        apiFetch<ListIssuesResponse>(`/projects/${projectId}/issues`),
+        apiFetch<ListIssuesResponse>(`/projects/${projectId}/issues?all=true`),
         apiFetch<ListLabelsResponse>(`/projects/${projectId}/labels`).catch(
           () => ({ labels: [] })
         ),
