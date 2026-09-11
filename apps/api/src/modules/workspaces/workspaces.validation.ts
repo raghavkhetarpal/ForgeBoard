@@ -18,3 +18,7 @@ export const inviteMemberSchema = z.object({
 export const updateMemberRoleSchema = z.object({
   role: z.enum(['OWNER', 'ADMIN', 'MEMBER', 'VIEWER']),
 });
+
+export const updateWorkspaceSchema = z.object({
+  name: z.string().min(1, 'Workspace name is required').max(100).trim(),
+});

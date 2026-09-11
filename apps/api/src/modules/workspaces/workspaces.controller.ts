@@ -5,6 +5,7 @@ import {
   createWorkspaceSchema,
   inviteMemberSchema,
   updateMemberRoleSchema,
+  updateWorkspaceSchema,
 } from './workspaces.validation';
 import { AppError } from '../../infrastructure/errors';
 
@@ -161,6 +162,51 @@ export class WorkspacesController {
 
       const workspaceId = req.params.workspaceId || req.params.id;
       const result = await this.service.leaveWorkspace(workspaceId, req.user.id);
+
+      res.status(200).json({ data: result });
+    } catch (error: unknown) {
+      if (error instanceof AppError) {
+        res.status(error.statusCode).json({ error: { code: error.code, message: error.message } });
+        return;
+      }
+      next(error);
+    }
+  };
+
+  update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+        return;
+      }
+
+      const workspaceId = req.params.workspaceId || req.params.id;
+      const parsed = updateWorkspaceSchema.parse(req.body);
+      const workspace = await this.service.updateWorkspace(workspaceId, req.user.id, parsed);
+
+      res.status(200).json({ data: { workspace } });
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
+        res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
+        return;
+      }
+      if (error instanceof AppError) {
+        res.status(error.statusCode).json({ error: { code: error.code, message: error.message } });
+        return;
+      }
+      next(error);
+    }
+  };
+
+  delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: { code: 'UNAUTHORIZED', message: 'Authentication required' } });
+        return;
+      }
+
+      const workspaceId = req.params.workspaceId || req.params.id;
+      const result = await this.service.deleteWorkspace(workspaceId, req.user.id);
 
       res.status(200).json({ data: result });
     } catch (error: unknown) {

@@ -251,6 +251,46 @@ export class WorkspacesService {
 
     return { success: true, message: 'You have left the workspace.' };
   }
+
+  async updateWorkspace(workspaceId: string, userId: string, data: { name: string }): Promise<WorkspaceDto> {
+    const membership = await this.repo.findMember(workspaceId, userId);
+    if (!membership || ROLE_HIERARCHY[membership.role as WorkspaceRole] < ROLE_HIERARCHY.ADMIN) {
+      throw new AppError('Only Workspace Owners and Admins can update workspace settings.', 403, 'FORBIDDEN');
+    }
+
+    const workspace = await this.repo.findWorkspaceById(workspaceId);
+    if (!workspace) {
+      throw new AppError('Workspace not found.', 404, 'NOT_FOUND');
+    }
+
+    const updated = await this.repo.updateWorkspace(workspaceId, { name: data.name.trim() });
+    return {
+      id: updated.id,
+      name: updated.name,
+      slug: updated.slug,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    };
+  }
+
+  async deleteWorkspace(workspaceId: string, userId: string): Promise<{ success: boolean; message: string }> {
+    const membership = await this.repo.findMember(workspaceId, userId);
+    if (!membership || membership.role !== 'OWNER') {
+      throw new AppError('Only Workspace Owners can delete a workspace.', 403, 'FORBIDDEN');
+    }
+
+    const workspace = await this.repo.findWorkspaceById(workspaceId);
+    if (!workspace) {
+      throw new AppError('Workspace not found.', 404, 'NOT_FOUND');
+    }
+
+    // Invalidate sessions for all members before deletion
+    const memberUserIds = workspace.members.map((m) => m.userId);
+    await this.repo.deleteWorkspace(workspaceId);
+    await Promise.all(memberUserIds.map((uid) => this.repo.invalidateUserSessions(uid)));
+
+    return { success: true, message: 'Workspace deleted successfully.' };
+  }
 }
 
 export const workspacesService = new WorkspacesService();

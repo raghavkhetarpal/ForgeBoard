@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { projectsService } from './projects.service';
-import { createProjectSchema, updateProjectSchema, addProjectMemberSchema } from './projects.validation';
+import { createProjectSchema, updateProjectSchema, addProjectMemberSchema, updateProjectMemberSchema } from './projects.validation';
 
 export class ProjectsController {
   async create(req: Request, res: Response, next: NextFunction) {
@@ -52,6 +52,24 @@ export class ProjectsController {
     }
   }
 
+  async delete(req: Request, res: Response, next: NextFunction) {
+    try {
+      await projectsService.deleteProject(req.params.projectId);
+      res.status(200).json({ success: true, message: 'Project deleted successfully' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async listMembers(req: Request, res: Response, next: NextFunction) {
+    try {
+      const members = await projectsService.listProjectMembers(req.params.projectId);
+      res.json({ members });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async addMember(req: Request, res: Response, next: NextFunction) {
     try {
       const data = addProjectMemberSchema.parse(req.body);
@@ -64,6 +82,21 @@ export class ProjectsController {
         workspaceId
       );
       res.status(201).json({ member });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateMemberRole(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = updateProjectMemberSchema.parse(req.body);
+      const member = await projectsService.updateProjectMemberRole(
+        req.params.projectId,
+        req.params.userId,
+        data.role,
+        req.projectMembership!.isImplicitAdmin
+      );
+      res.json({ member });
     } catch (error) {
       next(error);
     }

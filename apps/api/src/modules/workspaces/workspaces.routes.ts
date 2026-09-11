@@ -9,8 +9,10 @@ const router = Router();
 router.post('/', requireAuth, workspacesController.create);
 router.get('/', requireAuth, workspacesController.list);
 
-// Workspace detail
+// Workspace detail and settings
 router.get('/:workspaceId', requireAuth, requireWorkspaceRole('VIEWER'), workspacesController.getById);
+router.patch('/:workspaceId', requireAuth, requireWorkspaceRole('ADMIN'), workspacesController.update);
+router.delete('/:workspaceId', requireAuth, requireWorkspaceRole('OWNER'), workspacesController.delete);
 
 // Workspace membership management
 router.post('/:workspaceId/invites', requireAuth, requireWorkspaceRole('ADMIN'), workspacesController.inviteMember);

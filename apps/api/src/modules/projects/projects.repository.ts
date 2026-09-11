@@ -35,6 +35,25 @@ export class ProjectsRepository {
     });
   }
 
+  async listMembers(projectId: string) {
+    return prisma.projectMember.findMany({
+      where: { projectId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatarUrl: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   async addMember(data: {
     projectId: string;
     workspaceId: string;
@@ -43,6 +62,18 @@ export class ProjectsRepository {
   }) {
     return prisma.projectMember.create({
       data,
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatarUrl: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
     });
   }
 
@@ -60,6 +91,18 @@ export class ProjectsRepository {
         projectId_userId: { projectId, userId },
       },
       data: { role },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatarUrl: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
     });
   }
 

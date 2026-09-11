@@ -197,6 +197,21 @@ export class WorkspacesRepository {
     });
   }
 
+  async updateWorkspace(id: string, data: { name: string }) {
+    return prisma.workspace.update({
+      where: { id },
+      data: {
+        name: data.name,
+      },
+    });
+  }
+
+  async deleteWorkspace(id: string) {
+    return prisma.workspace.delete({
+      where: { id },
+    });
+  }
+
   async invalidateUserSessions(userId: string): Promise<void> {
     await invalidateUserRedisSessions(userId);
   }

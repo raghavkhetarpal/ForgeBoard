@@ -446,3 +446,22 @@ export interface LabelDeletedSocketEvent {
   labelId: string;
   projectId: string;
 }
+
+// Workspace & Project Management Responses
+export interface UpdateWorkspaceResponse {
+  data: {
+    workspace: WorkspaceDto;
+  };
+}
+
+export interface ListProjectMembersResponse {
+  members: ProjectMemberDto[];
+}
+
+export interface AddProjectMemberResponse {
+  member: ProjectMemberDto;
+}
+
+export interface UpdateProjectMemberResponse {
+  member: ProjectMemberDto;
+}

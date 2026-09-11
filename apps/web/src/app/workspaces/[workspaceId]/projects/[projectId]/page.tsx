@@ -13,6 +13,8 @@ import { ProjectIssuesList } from '@/components/issues/ProjectIssuesList';
 import { ProjectMilestones } from '@/components/milestones/ProjectMilestones';
 import { ProjectActivityFeed } from '@/components/activity/ProjectActivityFeed';
 import { ProjectGithubSettings } from '@/components/github/ProjectGithubSettings';
+import { ProjectGeneralSettings } from '@/components/projects/ProjectGeneralSettings';
+import { ProjectMembersSettings } from '@/components/projects/ProjectMembersSettings';
 import {
   FolderKanban,
   AlertCircle,
@@ -63,6 +65,9 @@ export default function ProjectPage() {
   const [workspace, setWorkspace] = useState<WorkspaceDto | null>(null);
   const [members, setMembers] = useState<WorkspaceMemberDto[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('board');
+  const [settingsSubTab, setSettingsSubTab] = useState<'general' | 'members' | 'github'>(
+    searchParams.get('github') ? 'github' : 'general'
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -455,26 +460,96 @@ export default function ProjectPage() {
             )}
 
             {activeTab === 'settings' && (
-              <ProjectGithubSettings
-                projectId={projectId}
-                isProjectAdmin={
-                  members.find((m) => m.userId === user?.id)?.role === 'OWNER' ||
-                  members.find((m) => m.userId === user?.id)?.role === 'ADMIN'
-                }
-                initialAlert={
-                  searchParams.get('github') === 'success'
-                    ? {
-                        type: 'success',
-                        message: 'GitHub account connected successfully!',
-                      }
-                    : searchParams.get('github') === 'error'
-                    ? {
-                        type: 'error',
-                        message: 'Failed to complete GitHub authorization.',
-                      }
-                    : null
-                }
-              />
+              <div className="space-y-6">
+                {/* Settings Sub-navigation */}
+                <div className="flex items-center space-x-2 border-b border-border pb-3 overflow-x-auto">
+                  <button
+                    type="button"
+                    onClick={() => setSettingsSubTab('general')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+                      settingsSubTab === 'general'
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-foreground/70 hover:text-foreground hover:bg-foreground/5'
+                    }`}
+                  >
+                    <SettingsIcon className="h-3.5 w-3.5" />
+                    <span>General</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSettingsSubTab('members')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+                      settingsSubTab === 'members'
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-foreground/70 hover:text-foreground hover:bg-foreground/5'
+                    }`}
+                  >
+                    <Users className="h-3.5 w-3.5" />
+                    <span>Members & Access</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSettingsSubTab('github')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+                      settingsSubTab === 'github'
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-foreground/70 hover:text-foreground hover:bg-foreground/5'
+                    }`}
+                  >
+                    <Building2 className="h-3.5 w-3.5" />
+                    <span>GitHub Integration</span>
+                  </button>
+                </div>
+
+                {settingsSubTab === 'general' && (
+                  <ProjectGeneralSettings
+                    project={project}
+                    workspaceId={workspaceId}
+                    isProjectAdmin={
+                      members.find((m) => m.userId === user?.id)?.role === 'OWNER' ||
+                      members.find((m) => m.userId === user?.id)?.role === 'ADMIN'
+                    }
+                    onProjectUpdate={(updated) => setProject(updated)}
+                  />
+                )}
+
+                {settingsSubTab === 'members' && (
+                  <ProjectMembersSettings
+                    projectId={projectId}
+                    workspaceMembers={members}
+                    currentUserId={user?.id}
+                    isProjectAdmin={
+                      members.find((m) => m.userId === user?.id)?.role === 'OWNER' ||
+                      members.find((m) => m.userId === user?.id)?.role === 'ADMIN'
+                    }
+                  />
+                )}
+
+                {settingsSubTab === 'github' && (
+                  <ProjectGithubSettings
+                    projectId={projectId}
+                    isProjectAdmin={
+                      members.find((m) => m.userId === user?.id)?.role === 'OWNER' ||
+                      members.find((m) => m.userId === user?.id)?.role === 'ADMIN'
+                    }
+                    initialAlert={
+                      searchParams.get('github') === 'success'
+                        ? {
+                            type: 'success',
+                            message: 'GitHub account connected successfully!',
+                          }
+                        : searchParams.get('github') === 'error'
+                        ? {
+                            type: 'error',
+                            message: 'Failed to complete GitHub authorization.',
+                          }
+                        : null
+                    }
+                  />
+                )}
+              </div>
             )}
           </>
         ) : null}

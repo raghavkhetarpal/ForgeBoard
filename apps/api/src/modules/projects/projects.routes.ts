@@ -46,10 +46,28 @@ projectRouter.delete(
   projectsController.archive.bind(projectsController)
 );
 
+projectRouter.delete(
+  '/:projectId/permanent',
+  requireProjectRole('ADMIN'),
+  projectsController.delete.bind(projectsController)
+);
+
+projectRouter.get(
+  '/:projectId/members',
+  requireProjectRole('VIEWER'),
+  projectsController.listMembers.bind(projectsController)
+);
+
 projectRouter.post(
   '/:projectId/members',
   requireProjectRole('ADMIN'), // only project admins can add members
   projectsController.addMember.bind(projectsController)
+);
+
+projectRouter.patch(
+  '/:projectId/members/:userId',
+  requireProjectRole('ADMIN'),
+  projectsController.updateMemberRole.bind(projectsController)
 );
 
 projectRouter.delete(

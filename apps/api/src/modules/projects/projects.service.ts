@@ -1,6 +1,8 @@
 import { projectsRepository } from './projects.repository';
+import { workspacesRepository } from '../workspaces/workspaces.repository';
 import { ProjectStatus, ProjectRole, ProjectDto, ProjectMemberDto } from '@forgeboard/types';
 import { AppError } from '../../infrastructure/errors';
+import prisma from '../../infrastructure/prisma';
 
 export class ProjectsService {
   async createProject(
@@ -66,23 +68,60 @@ export class ProjectsService {
     return projectsRepository.update(projectId, { status: 'ARCHIVED' });
   }
 
+  async listProjectMembers(projectId: string): Promise<ProjectMemberDto[]> {
+    return projectsRepository.listMembers(projectId) as unknown as ProjectMemberDto[];
+  }
+
   async addProjectMember(
     projectId: string,
     targetUserId: string,
     role: ProjectRole,
     workspaceId: string
   ): Promise<ProjectMemberDto> {
+    const user = await prisma.user.findUnique({ where: { id: targetUserId } });
+    if (!user) {
+      throw new AppError('User not found', 404, 'NOT_FOUND');
+    }
+
     const existing = await projectsRepository.findMember(projectId, targetUserId);
     if (existing) {
       throw new AppError('User is already a member of this project', 409, 'CONFLICT');
     }
 
-    return projectsRepository.addMember({
+    const workspaceMember = await workspacesRepository.findMember(workspaceId, targetUserId);
+    if (!workspaceMember) {
+      await workspacesRepository.addMember(workspaceId, targetUserId, 'VIEWER');
+    }
+
+    const created = await projectsRepository.addMember({
       projectId,
       workspaceId,
       userId: targetUserId,
       role,
     });
+    return created as unknown as ProjectMemberDto;
+  }
+
+  async updateProjectMemberRole(
+    projectId: string,
+    targetUserId: string,
+    role: ProjectRole,
+    isImplicitAdmin: boolean
+  ): Promise<ProjectMemberDto> {
+    const existing = await projectsRepository.findMember(projectId, targetUserId);
+    if (!existing) {
+      throw new AppError('User is not a member of this project', 404, 'NOT_FOUND');
+    }
+
+    if (existing.role === 'ADMIN' && role !== 'ADMIN') {
+      const adminCount = await projectsRepository.countAdmins(projectId);
+      if (adminCount <= 1 && !isImplicitAdmin) {
+        throw new AppError('Cannot demote the last explicit project administrator without transferring role.', 409, 'CONFLICT');
+      }
+    }
+
+    const updated = await projectsRepository.updateMemberRole(projectId, targetUserId, role);
+    return updated as unknown as ProjectMemberDto;
   }
 
   async removeProjectMember(projectId: string, targetUserId: string, isImplicitAdmin: boolean): Promise<void> {
@@ -102,6 +141,12 @@ export class ProjectsService {
     }
 
     await projectsRepository.removeMember(projectId, targetUserId);
+  }
+
+  async deleteProject(projectId: string): Promise<void> {
+    const existing = await projectsRepository.findById(projectId);
+    if (!existing) throw new AppError('Project not found', 404, 'NOT_FOUND');
+    await projectsRepository.delete(projectId);
   }
 }
 
