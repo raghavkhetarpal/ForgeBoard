@@ -35,7 +35,7 @@ function verifyGithubSignature(req: Request, res: Response, next: NextFunction) 
     if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
       return res.status(401).send('Invalid signature');
     }
-  } catch (_err) {
+  } catch {
     return res.status(401).send('Invalid signature');
   }
 

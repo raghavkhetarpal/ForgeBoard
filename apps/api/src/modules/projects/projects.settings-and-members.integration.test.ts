@@ -12,7 +12,6 @@ describe('Project Settings, Role Management & Team Administration Integration Te
   let adminId: string;
   let memberToken: string;
   let memberId: string;
-  let outsiderToken: string;
   let outsiderId: string;
   let workspaceId: string;
   let projectId: string;
@@ -41,7 +40,7 @@ describe('Project Settings, Role Management & Team Administration Integration Te
       data: { email: `outsider-${randomUUID()}@example.com`, name: 'Outsider', passwordHash: 'hash' },
     });
     outsiderId = outsider.id;
-    outsiderToken = (await createSession(outsider.id, outsider.email)).sessionId;
+    await createSession(outsider.id, outsider.email);
 
     // 2. Create Workspace
     const wsRes = await request(app)

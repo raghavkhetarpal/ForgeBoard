@@ -5,7 +5,6 @@ import prisma from '../../infrastructure/prisma';
 import { createSession } from '../../infrastructure/session';
 import crypto, { randomUUID } from 'crypto';
 import { encryptString } from '../../infrastructure/encryption';
-import { getSocketServer } from '../../infrastructure/socket';
 
 describe('Webhooks Module Integration Tests', () => {
   let memberToken: string;
