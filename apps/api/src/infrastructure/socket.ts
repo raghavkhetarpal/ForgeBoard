@@ -4,6 +4,8 @@ import redis from './redis';
 import { getSession, unsignSessionCookie, SESSION_COOKIE_NAME } from './session';
 import prisma from './prisma';
 import { issuesRepository } from '../modules/issues/issues.repository';
+import { logger } from './logger';
+import { metrics } from './metrics';
 
 let io: Server;
 
@@ -22,6 +24,7 @@ import { Server as HttpServer } from 'http';
 export function initSocketServer(httpServer: HttpServer) {
   const pubClient = redis;
   const subClient = pubClient.duplicate();
+  subClient.on('error', () => {}); // Prevent unhandled error event on adapter subscriber
 
   io = new Server(httpServer, {
     cors: {
@@ -86,7 +89,11 @@ export function initSocketServer(httpServer: HttpServer) {
 
   // Connection Handler
   io.on('connection', (socket) => {
-    console.log(`Socket connected: ${socket.id} (User: ${socket.data.user.id})`);
+    metrics.incrementConnectedSockets();
+    logger.info(`Socket client connected: ${socket.id}`, {
+      socketId: socket.id,
+      userId: socket.data.user?.id,
+    });
 
     // Automatically join the personal user room
     socket.join(`user:${socket.data.user.id}`);
@@ -100,11 +107,17 @@ export function initSocketServer(httpServer: HttpServer) {
       try {
         const isMember = await issuesRepository.isProjectMember(projectId, socket.data.user.id);
         if (!isMember) {
+           logger.warn(`Socket room join denied: user is not a member`, {
+             socketId: socket.id,
+             userId: socket.data.user?.id,
+             projectId,
+           });
            return callback?.({ error: 'Forbidden' });
         }
         
         const roomName = `project:${projectId}`;
         socket.join(roomName);
+        logger.debug(`Socket joined room`, { socketId: socket.id, room: roomName });
         callback?.({ success: true, room: roomName });
       } catch {
         callback?.({ error: 'Internal server error' });
@@ -120,7 +133,11 @@ export function initSocketServer(httpServer: HttpServer) {
     });
 
     socket.on('disconnect', () => {
-      console.log(`Socket disconnected: ${socket.id}`);
+      metrics.decrementConnectedSockets();
+      logger.info(`Socket client disconnected: ${socket.id}`, {
+        socketId: socket.id,
+        userId: socket.data.user?.id,
+      });
     });
   });
 

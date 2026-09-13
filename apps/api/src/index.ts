@@ -9,6 +9,10 @@ import { AppError } from './infrastructure/errors';
 import http from 'http';
 import { initSocketServer } from './infrastructure/socket';
 import { env } from './infrastructure/env';
+import { logger } from './infrastructure/logger';
+import { errorReporter } from './infrastructure/error-reporter';
+import { requestLogger } from './middleware/request-logger.middleware';
+import healthRouter from './modules/health/health.routes';
 
 dotenv.config({ path: '../../.env' });
 
@@ -24,6 +28,7 @@ app.use(
     credentials: true,
   }),
 );
+app.use(requestLogger);
 app.use(express.json({
   verify: (req, _res, buf) => {
     (req as any).rawBody = buf;
@@ -31,10 +36,8 @@ app.use(express.json({
 }));
 app.use(cookieParser(sessionSecret));
 
-// Health check
-app.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', service: 'api' });
-});
+// Health and Readiness probes
+app.use(healthRouter);
 
 import issuesRouter from './modules/issues/issues.routes';
 import notificationsRouter from './modules/notifications/notifications.routes';
@@ -56,7 +59,7 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/webhooks', webhooksRoutes);
 
 // Global error handler envelope per docs/ARCHITECTURE.md §8
-app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
       error: {
@@ -68,7 +71,14 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     return;
   }
 
-  console.error('Unhandled API Error:', err);
+  // Report internal / unhandled errors via centralized error reporter
+  errorReporter.captureException(err, {
+    requestId: req.id,
+    route: req.originalUrl || req.url,
+    method: req.method,
+    userId: req.user?.id,
+  });
+
   const message =
     process.env.NODE_ENV === 'production'
       ? 'An internal error occurred.'
@@ -86,8 +96,24 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 
 if (process.env.NODE_ENV !== 'test') {
   httpServer.listen(port, () => {
-    console.log(`ForgeBoard API running on port ${port}`);
+    logger.info(`ForgeBoard API running on port ${port}`, {
+      port,
+      environment: env.NODE_ENV,
+      nodeVersion: process.version,
+    });
   });
+
+  // Graceful shutdown handling
+  const shutdown = (signal: string) => {
+    logger.info(`Received ${signal}, shutting down gracefully...`);
+    httpServer.close(() => {
+      logger.info('HTTP server closed.');
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 export default app;

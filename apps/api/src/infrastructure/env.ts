@@ -16,6 +16,8 @@ const envSchema = z.object({
   GITHUB_CLIENT_SECRET: z.string().optional(),
   GITHUB_WEBHOOK_SECRET: z.string().optional(),
   ENCRYPTION_KEY: z.string().optional(),
+  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).optional(),
+  SENTRY_DSN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

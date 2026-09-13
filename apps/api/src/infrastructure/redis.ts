@@ -11,9 +11,10 @@ export const redis =
   global.redisClient ||
   new Redis(redisUrl, {
     lazyConnect: true,
-    maxRetriesPerRequest: 3,
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
     retryStrategy(times) {
-      const delay = Math.min(times * 50, 2000);
+      const delay = Math.min(times * 100, 3000);
       return delay;
     },
   });
@@ -21,5 +22,12 @@ export const redis =
 if (process.env.NODE_ENV !== 'production') {
   global.redisClient = redis;
 }
+
+// Attach silent error handler to prevent unhandled EventEmitter exceptions during transient connection failures
+redis.on('error', (err) => {
+  if (process.env.NODE_ENV !== 'test') {
+    console.error('Redis client error:', err.message);
+  }
+});
 
 export default redis;

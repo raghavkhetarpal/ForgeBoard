@@ -54,6 +54,13 @@ cp .env.example .env
 | `NEXT_PUBLIC_API_URL` | Public URL of the API (with `/api` suffix) |
 | `NEXT_PUBLIC_SOCKET_URL` | Public URL of the API (base, no `/api`) |
 
+### Optional Observability & Monitoring
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LOG_LEVEL` | Minimum log severity level (`debug`, `info`, `warn`, `error`) | `info` in production, `debug` in dev |
+| `SENTRY_DSN` | Sentry or OpenTelemetry-compatible error tracking DSN | Disabled (structured JSON logs) |
+
 ### Generate Secrets
 
 ```bash
@@ -198,6 +205,32 @@ docker compose -f docker-compose.prod.yml --profile migrate run --rm api-migrate
 
 - **PostgreSQL**: Neon, Supabase, or AWS RDS. Use the connection string in `DATABASE_URL`.
 - **Redis**: Upstash or Redis Cloud. Use the connection string in `REDIS_URL`.
+
+---
+
+## Observability, Health Probes & Metrics
+
+The API exposes three health, readiness, and metrics endpoints:
+
+| Endpoint | Method | Purpose | Response |
+|----------|--------|---------|----------|
+| `/health` | `GET` | **Liveness Probe**: Confirms API process is alive | `200 OK` `{ "status": "ok", "service": "api", "uptimeSeconds": ... }` |
+| `/health/ready` | `GET` | **Readiness Probe**: Verifies PostgreSQL & Redis ping | `200 OK` if all dependencies respond; `503 Service Unavailable` with latency details if degraded |
+| `/health/metrics` | `GET` | **Runtime Metrics**: Memory, HTTP request counters, Socket.IO clients | JSON snapshot by default; Prometheus text exposition when `Accept: text/plain` |
+
+### Prometheus Scraping Configuration
+
+To scrape metrics using Prometheus or OpenTelemetry Collector:
+
+```yaml
+scrape_configs:
+  - job_name: 'forgeboard-api'
+    metrics_path: '/health/metrics'
+    static_configs:
+      - targets: ['api:4000']
+    headers:
+      Accept: 'text/plain'
+```
 
 ---
 
