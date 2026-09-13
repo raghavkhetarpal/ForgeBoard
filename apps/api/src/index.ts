@@ -94,7 +94,7 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'test' || process.env.PLAYWRIGHT_TEST === 'true' || process.env.START_SERVER === 'true') {
   httpServer.listen(port, () => {
     logger.info(`ForgeBoard API running on port ${port}`, {
       port,

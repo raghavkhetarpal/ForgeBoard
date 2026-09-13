@@ -30,6 +30,9 @@ export default defineConfig({
       url: 'http://localhost:4000/health',
       reuseExistingServer: !process.env.CI,
       timeout: 30000,
+      env: {
+        PLAYWRIGHT_TEST: 'true',
+      },
     },
     {
       command: 'npm run dev --workspace=@forgeboard/web',
