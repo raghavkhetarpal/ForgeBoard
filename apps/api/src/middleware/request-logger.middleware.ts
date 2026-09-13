@@ -23,9 +23,9 @@ export function requestLogger(req: Request, res: Response, next: NextFunction): 
 
   res.on('finish', () => {
     metrics.decrementActiveRequests();
-    metrics.recordStatusCode(res.statusCode);
-
     const durationMs = Date.now() - (req.startTime || Date.now());
+    metrics.recordRequest(res.statusCode, durationMs);
+
     const logContext: Record<string, unknown> = {
       requestId,
       method: req.method,

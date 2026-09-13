@@ -210,13 +210,24 @@ docker compose -f docker-compose.prod.yml --profile migrate run --rm api-migrate
 
 ## Observability, Health Probes & Metrics
 
-The API exposes three health, readiness, and metrics endpoints:
+The API provides production-grade structured logging, request tracing, centralized error reporting with provider abstraction, and runtime metrics.
+
+### Endpoints
 
 | Endpoint | Method | Purpose | Response |
 |----------|--------|---------|----------|
 | `/health` | `GET` | **Liveness Probe**: Confirms API process is alive | `200 OK` `{ "status": "ok", "service": "api", "uptimeSeconds": ... }` |
 | `/health/ready` | `GET` | **Readiness Probe**: Verifies PostgreSQL & Redis ping | `200 OK` if all dependencies respond; `503 Service Unavailable` with latency details if degraded |
-| `/health/metrics` | `GET` | **Runtime Metrics**: Memory, HTTP request counters, Socket.IO clients | JSON snapshot by default; Prometheus text exposition when `Accept: text/plain` |
+| `/health/metrics` | `GET` | **Runtime Metrics**: Memory, request count, error count, latency percentiles (avg, p95), Socket.IO clients | JSON snapshot by default; Prometheus text exposition when `Accept: text/plain` |
+
+### Capabilities
+
+- **Structured JSON Logging**: Single-line machine-readable logs in `production`, colorized in `development`.
+- **Automatic Data Redaction**: Automatically redacts passwords, tokens, API keys, session secrets, private keys, cookies, and authorization headers.
+- **Distributed Request Tracing**: Assigns and returns `X-Request-Id` on all responses, correlating duration (ms), method, route, and status code.
+- **Centralized Error Reporting**: Pluggable provider abstraction (`ErrorReportingProvider`). Uses `LocalLoggerProvider` by default and activates `SentryReportingProvider` when `SENTRY_DSN` is configured.
+- **Crash Protection**: Global listeners for `uncaughtException` and `unhandledRejection` capture errors through the reporter before exiting.
+- **Latency & Error Metrics**: Tracks total requests, active requests, error responses, latency distribution (avg, min, max, p95), and active Socket.IO connections.
 
 ### Prometheus Scraping Configuration
 

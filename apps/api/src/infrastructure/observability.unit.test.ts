@@ -58,11 +58,33 @@ describe('Observability Infrastructure Unit Tests', () => {
       expect(snapshot.memoryUsageMb.heapUsed).toBeGreaterThan(0);
     });
 
+    it('tracks request latency statistics and error counts', () => {
+      metrics.incrementRequests();
+      metrics.recordRequest(200, 50);
+      metrics.decrementActiveRequests();
+
+      metrics.incrementRequests();
+      metrics.recordRequest(500, 150);
+      metrics.decrementActiveRequests();
+
+      const snapshot = metrics.getSnapshot();
+      expect(snapshot.http.totalErrors).toBeGreaterThan(0);
+      expect(snapshot.http.latency.avgMs).toBeGreaterThan(0);
+      expect(snapshot.http.latency.minMs).toBeGreaterThan(0);
+      expect(snapshot.http.latency.maxMs).toBeGreaterThanOrEqual(150);
+      expect(snapshot.http.latency.p95Ms).toBeGreaterThan(0);
+    });
+
     it('formats metrics in Prometheus text exposition format', () => {
       metrics.incrementRequests();
-      metrics.recordStatusCode(200);
+      metrics.recordRequest(200, 45);
+      metrics.recordRequest(500, 120);
       const text = metrics.toPrometheusFormat();
       expect(text).toContain('# TYPE http_requests_total counter');
+      expect(text).toContain('# TYPE http_errors_total counter');
+      expect(text).toContain('http_errors_total');
+      expect(text).toContain('http_request_duration_milliseconds_avg');
+      expect(text).toContain('http_request_duration_milliseconds_p95');
       expect(text).toContain('process_uptime_seconds');
       expect(text).toContain('nodejs_memory_heap_used_bytes');
     });
@@ -99,6 +121,25 @@ describe('Observability Infrastructure Unit Tests', () => {
       });
       expect(warnSpy).toHaveBeenCalled();
       warnSpy.mockRestore();
+    });
+
+    it('allows registering custom providers and handles provider errors gracefully', () => {
+      const mockCustomProvider = {
+        name: 'custom-mock',
+        captureException: vi.fn().mockImplementation(() => {
+          throw new Error('Custom provider upstream failure');
+        }),
+        captureMessage: vi.fn(),
+      };
+
+      errorReporter.registerProvider(mockCustomProvider);
+      expect(errorReporter.getProviders().some((p) => p.name === 'custom-mock')).toBe(true);
+
+      // Should safely catch the provider failure without bubbling up
+      expect(() => {
+        errorReporter.captureException(new Error('Sample test error'));
+      }).not.toThrow();
+      expect(mockCustomProvider.captureException).toHaveBeenCalled();
     });
   });
 });

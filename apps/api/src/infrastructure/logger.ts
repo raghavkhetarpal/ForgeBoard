@@ -15,8 +15,13 @@ const minSeverity = LOG_LEVEL_SEVERITY[currentMinLevel] ?? 20;
 // Keys that must be masked to prevent credential or secret leakage
 const REDACTED_KEYS = new Set([
   'password',
+  'passwordhash',
   'token',
+  'refreshtoken',
+  'accesstoken',
+  'idtoken',
   'authorization',
+  'auth',
   'cookie',
   'cookies',
   'signedcookies',
@@ -26,9 +31,12 @@ const REDACTED_KEYS = new Set([
   'clientsecret',
   'webhooksecret',
   'code',
-  'refreshtoken',
-  'accesstoken',
-  'passwordhash',
+  'apikey',
+  'api_key',
+  'privatekey',
+  'private_key',
+  'cert',
+  'jwt',
 ]);
 
 /**

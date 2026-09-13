@@ -114,6 +114,23 @@ if (process.env.NODE_ENV !== 'test') {
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
+
+  // Global uncaught exception and unhandled promise rejection handlers
+  process.on('uncaughtException', (err: Error) => {
+    logger.error('Fatal Uncaught Exception detected', err, { fatal: true });
+    errorReporter.captureException(err, { extra: { fatal: true, type: 'uncaughtException' } });
+    process.exit(1);
+  });
+
+  process.on('unhandledRejection', (reason: unknown) => {
+    logger.error('Unhandled Promise Rejection detected', reason instanceof Error ? reason : undefined, {
+      fatal: false,
+      reason: String(reason),
+    });
+    errorReporter.captureException(reason instanceof Error ? reason : new Error(String(reason)), {
+      extra: { type: 'unhandledRejection' },
+    });
+  });
 }
 
 export default app;
