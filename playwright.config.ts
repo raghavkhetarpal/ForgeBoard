@@ -37,7 +37,9 @@ export default defineConfig({
       },
     },
     {
-      command: 'npm run dev --workspace=@forgeboard/web',
+      command: process.env.CI_E2E
+        ? 'npm run start --workspace=@forgeboard/web'
+        : 'npm run dev --workspace=@forgeboard/web',
       url: 'http://localhost:3000',
       reuseExistingServer: !process.env.CI,
       timeout: 60000,

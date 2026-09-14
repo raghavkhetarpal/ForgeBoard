@@ -169,8 +169,12 @@ jobs:
         run: npx prisma migrate deploy
       - name: Install Playwright Browsers
         run: npx playwright install chromium --with-deps
+      - name: Build web application
+        run: npm run build --workspace=@forgeboard/web
       - name: Run Playwright tests
         run: npm run test:e2e
+        env:
+          CI_E2E: "true"
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
