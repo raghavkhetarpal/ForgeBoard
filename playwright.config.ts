@@ -29,7 +29,9 @@ export default defineConfig({
       command: 'npm run dev --workspace=@forgeboard/api',
       url: 'http://localhost:4000/health',
       reuseExistingServer: !process.env.CI,
-      timeout: 30000,
+      timeout: 60000,
+      stdout: 'pipe',
+      stderr: 'pipe',
       env: {
         PLAYWRIGHT_TEST: 'true',
       },
@@ -39,6 +41,8 @@ export default defineConfig({
       url: 'http://localhost:3000',
       reuseExistingServer: !process.env.CI,
       timeout: 60000,
+      stdout: 'pipe',
+      stderr: 'pipe',
     },
   ],
 });
