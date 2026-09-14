@@ -175,7 +175,6 @@ jobs:
         run: npm run test:e2e
         env:
           DEBUG: "pw:webserver"
-          CI_E2E: "true"
           PLAYWRIGHT_TEST: "true"
           START_SERVER: "true"
       - name: Upload Playwright Report
