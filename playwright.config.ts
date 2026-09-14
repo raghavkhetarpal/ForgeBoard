@@ -38,7 +38,7 @@ export default defineConfig({
     },
     {
       command: process.env.CI_E2E
-        ? 'npm run start --workspace=@forgeboard/web'
+        ? 'node apps/web/.next/standalone/apps/web/server.js'
         : 'npm run dev --workspace=@forgeboard/web',
       url: 'http://localhost:3000',
       reuseExistingServer: !process.env.CI,
