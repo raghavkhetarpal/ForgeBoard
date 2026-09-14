@@ -10,7 +10,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: 1,
-  reporter: process.env.CI ? [['list'], ['github']] : [['list']],
+  reporter: process.env.CI ? [['list'], ['github'], ['html', { open: 'never' }]] : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
@@ -26,7 +26,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'npm run dev --workspace=@forgeboard/api',
+      command: 'node apps/api/dist/index.js',
       url: 'http://localhost:4000/health',
       reuseExistingServer: !process.env.CI,
       timeout: 60000,
@@ -34,6 +34,7 @@ export default defineConfig({
       stderr: 'pipe',
       env: {
         PLAYWRIGHT_TEST: 'true',
+        START_SERVER: 'true',
       },
     },
     {
