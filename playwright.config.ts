@@ -36,13 +36,10 @@ export default defineConfig({
       },
     },
     {
-      command: 'npm run dev --workspace=@forgeboard/web',
+      command: 'npm run dev --workspace=@forgeboard/web -- -p 3000',
       url: 'http://localhost:3000',
       reuseExistingServer: !process.env.CI,
       timeout: 60000,
-      env: {
-        PORT: '3000',
-      },
     },
   ],
 });
