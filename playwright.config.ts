@@ -30,8 +30,6 @@ export default defineConfig({
       url: 'http://localhost:4000/health',
       reuseExistingServer: !process.env.CI,
       timeout: 60000,
-      stdout: 'pipe',
-      stderr: 'pipe',
       env: {
         PLAYWRIGHT_TEST: 'true',
         START_SERVER: 'true',
@@ -44,8 +42,6 @@ export default defineConfig({
       url: 'http://localhost:3000',
       reuseExistingServer: !process.env.CI,
       timeout: 60000,
-      stdout: 'pipe',
-      stderr: 'pipe',
       env: {
         PORT: '3000',
       },
