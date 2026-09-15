@@ -172,16 +172,16 @@ jobs:
         run: npm run build
       - name: Start API Server
         run: |
-          node apps/api/dist/index.js &
-          npx wait-on tcp:4000 --timeout 30000
+          nohup node apps/api/dist/index.js > api.log 2>&1 &
+          npx wait-on tcp:4000 --timeout 30000 || (cat api.log && exit 1)
         env:
           PORT: "4000"
           PLAYWRIGHT_TEST: "true"
           START_SERVER: "true"
       - name: Start Web App
         run: |
-          npx next dev apps/web -p 3000 &
-          npx wait-on tcp:3000 --timeout 30000
+          nohup npx next dev apps/web -p 3000 > web.log 2>&1 &
+          npx wait-on tcp:3000 --timeout 30000 || (cat web.log && exit 1)
       - name: Run Playwright tests
         run: npm run test:e2e
       - name: Upload Playwright Report
