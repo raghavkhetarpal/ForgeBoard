@@ -24,27 +24,5 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: [
-    {
-      command: 'node apps/api/dist/index.js',
-      url: 'http://localhost:4000/health',
-      reuseExistingServer: !process.env.CI,
-      timeout: 60000,
-      stdout: 'pipe',
-      stderr: 'pipe',
-      env: {
-        PORT: '4000',
-        PLAYWRIGHT_TEST: 'true',
-        START_SERVER: 'true',
-      },
-    },
-    {
-      command: 'npm run dev --workspace=@forgeboard/web -- -p 3000',
-      url: 'http://localhost:3000',
-      reuseExistingServer: !process.env.CI,
-      timeout: 60000,
-      stdout: 'pipe',
-      stderr: 'pipe',
-    },
-  ],
+  reuseExistingServer: !process.env.CI,
 });
