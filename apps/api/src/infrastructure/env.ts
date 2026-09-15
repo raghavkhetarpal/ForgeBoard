@@ -18,6 +18,8 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().optional(),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).optional(),
   SENTRY_DSN: z.string().optional(),
+  RATE_LIMIT_AUTH_MAX: z.union([z.string(), z.number()]).transform((val) => typeof val === 'number' ? val : parseInt(val, 10)).default(10),
+  RATE_LIMIT_AUTH_WINDOW_MS: z.union([z.string(), z.number()]).transform((val) => typeof val === 'number' ? val : parseInt(val, 10)).default(15 * 60 * 1000),
 });
 
 export type Env = z.infer<typeof envSchema>;
