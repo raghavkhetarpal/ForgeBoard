@@ -31,6 +31,7 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 60000,
       env: {
+        PORT: '4000',
         PLAYWRIGHT_TEST: 'true',
         START_SERVER: 'true',
       },
