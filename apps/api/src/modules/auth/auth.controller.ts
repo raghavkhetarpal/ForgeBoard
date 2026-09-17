@@ -15,10 +15,11 @@ export class AuthController {
   constructor(private service: AuthService = authService) {}
 
   private setSessionCookie(res: Response, sessionId: string): void {
+    const isProduction = process.env.NODE_ENV === 'production';
     res.cookie(SESSION_COOKIE_NAME, sessionId, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       signed: true,
       maxAge: DEFAULT_SESSION_TTL_SECONDS * 1000,
       path: '/',
@@ -26,10 +27,11 @@ export class AuthController {
   }
 
   private clearSessionCookie(res: Response): void {
+    const isProduction = process.env.NODE_ENV === 'production';
     res.clearCookie(SESSION_COOKIE_NAME, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       path: '/',
     });
   }

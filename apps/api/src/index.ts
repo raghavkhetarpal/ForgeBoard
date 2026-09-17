@@ -17,6 +17,7 @@ import healthRouter from './modules/health/health.routes';
 dotenv.config({ path: '../../.env' });
 
 const app: Express = express();
+app.set('trust proxy', 1);
 export const httpServer = http.createServer(app);
 initSocketServer(httpServer);
 const port = env.PORT;
