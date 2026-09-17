@@ -8,7 +8,7 @@ import { workspaceProjectsRouter, projectRouter } from './modules/projects/proje
 import { AppError } from './infrastructure/errors';
 import http from 'http';
 import { initSocketServer } from './infrastructure/socket';
-import { env } from './infrastructure/env';
+import { env, getAllowedOrigins } from './infrastructure/env';
 import { logger } from './infrastructure/logger';
 import { errorReporter } from './infrastructure/error-reporter';
 import { requestLogger } from './middleware/request-logger.middleware';
@@ -24,7 +24,7 @@ const sessionSecret = env.SESSION_SECRET;
 
 app.use(
   cors({
-    origin: env.NEXT_PUBLIC_APP_URL,
+    origin: getAllowedOrigins(),
     credentials: true,
   }),
 );

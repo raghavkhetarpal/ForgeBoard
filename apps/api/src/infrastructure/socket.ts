@@ -6,6 +6,7 @@ import prisma from './prisma';
 import { issuesRepository } from '../modules/issues/issues.repository';
 import { logger } from './logger';
 import { metrics } from './metrics';
+import { getAllowedOrigins } from './env';
 
 let io: Server;
 
@@ -28,7 +29,7 @@ export function initSocketServer(httpServer: HttpServer) {
 
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      origin: getAllowedOrigins(),
       credentials: true,
     },
     adapter: createAdapter(pubClient, subClient),

@@ -12,6 +12,7 @@ const envSchema = z.object({
   REDIS_URL: z.string().default('redis://localhost:6379'),
   SESSION_SECRET: z.string().min(16, 'SESSION_SECRET must be at least 16 characters').default('forgeboard-dev-session-secret-at-least-16-chars'),
   NEXT_PUBLIC_APP_URL: z.string().default('http://localhost:3000'),
+  CORS_ORIGIN: z.string().optional(),
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
   GITHUB_WEBHOOK_SECRET: z.string().optional(),
@@ -42,3 +43,37 @@ export function validateEnv(): Env {
 }
 
 export const env = validateEnv();
+
+/**
+ * Returns the list of origins allowed by CORS and Socket.IO.
+ * Supports environment-based configuration via CORS_ORIGIN and NEXT_PUBLIC_APP_URL
+ * (including comma-separated lists), while ensuring standard development and
+ * production deployment origins are recognized.
+ */
+export function getAllowedOrigins(): (string | RegExp)[] {
+  const origins: (string | RegExp)[] = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+    'https://forge-board-web.vercel.app',
+    /^https:\/\/forge-board-web.*\.vercel\.app$/,
+  ];
+
+  const configuredOrigins = [
+    process.env.CORS_ORIGIN,
+    process.env.NEXT_PUBLIC_APP_URL,
+  ];
+
+  for (const entry of configuredOrigins) {
+    if (entry) {
+      for (const item of entry.split(',')) {
+        const trimmed = item.trim().replace(/\/+$/, '');
+        if (trimmed && !origins.some((o) => typeof o === 'string' && o.toLowerCase() === trimmed.toLowerCase())) {
+          origins.push(trimmed);
+        }
+      }
+    }
+  }
+
+  return origins;
+}
