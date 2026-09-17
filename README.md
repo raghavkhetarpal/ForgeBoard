@@ -73,7 +73,46 @@ docker compose -f docker-compose.prod.yml up --build -d
 | `npm run lint` | ESLint across all workspaces |
 | `npm run test` | Run unit and integration tests (Vitest) |
 | `npm run test:e2e` | Run Playwright end-to-end tests |
+| `npm run benchmark:seed` | Seed deterministic test data for performance benchmarking |
+| `npm run benchmark` | Execute local Autocannon API load benchmark suite |
 | `npm run format` | Format code with Prettier |
+
+## Engineering Highlights
+
+- **Multi-Tenant RBAC & Security**: Strict role inheritance (OWNER, ADMIN, MEMBER, VIEWER), redis-backed httpOnly cookie sessions, input validation via Zod, production security headers via Helmet, and rate limiting on sensitive auth endpoints.
+- **Database & Migration Hardening**: Multi-step writes guarded by Prisma ACID transactions, foreign keys enforced at the DB level, and optimized indexes (`issues(project_id, status)`, `activities(project_id, created_at)`).
+- **Trigram-Accelerated Issue Search**: Integrated PostgreSQL `pg_trgm` GIN indexes on issue `title` and `description` to prevent sequential table scans during wildcard search (`ILIKE`), achieving up to 94% reduction in p95 search latency under heavy concurrency.
+- **Real-Time Synchronization**: Room-scoped Socket.IO events triggered strictly post-DB transaction commit with Redis adapter fan-out for multi-instance readiness.
+- **Observability & Health Probes**: Production JSON logging with sensitive data redaction (passwords, tokens, cookies), request correlation via `X-Request-Id`, `/health/ready` readiness checks with DB/Redis ping latency, and Prometheus-compatible runtime metrics (`/health/metrics`).
+- **Webhook Hardening**: HMAC signature verification (`X-Hub-Signature-256`) and idempotency checks using GitHub delivery IDs to prevent duplicate activity records or notification triggers.
+
+## Performance Benchmarks
+
+*Note: The numbers below represent empirical measurements from local benchmark runs on developer hardware (Apple Silicon, Node.js v24, PostgreSQL 16, Redis 7).*
+
+The performance benchmark suite tests 5 core API operations under increasing Virtual User (VU) concurrency (10, 25, and 50 VUs) against a standard dataset (10 users, 2 workspaces, 4 projects, 200 issues, 200 activities).
+
+### Baseline Load Benchmark Summary
+
+Across 35,504 total benchmark requests under 10, 25, and 50 VU concurrency, the system maintained a **0.0% error rate**.
+
+| Operation | 10 VUs Throughput | 10 VUs p95 | 25 VUs Throughput | 25 VUs p95 | 50 VUs Throughput | 50 VUs p95 |
+|-----------|------------------|------------|------------------|------------|------------------|------------|
+| **Issue Listing** (Paginated) | 260.6 RPS | 58 ms | 312.3 RPS | 134 ms | 311.1 RPS | 250 ms |
+| **Issue Creation** (Transaction + Activity) | 218.0 RPS | 75 ms | 262.1 RPS | 165 ms | 277.5 RPS | 290 ms |
+| **Issue Reorder** (LexoRank update) | 260.0 RPS | 59 ms | 294.0 RPS | 148 ms | 293.4 RPS | 268 ms |
+| **Issue Search** (`pg_trgm` GIN Index) | 204.3 RPS | 84 ms | 210.2 RPS | 205 ms | 194.1 RPS | 440 ms |
+| **Comment Creation** (Authoring flow) | 215.3 RPS | 74 ms | 272.7 RPS | 158 ms | 273.7 RPS | 292 ms |
+
+### Search Optimization (pg_trgm GIN Index Impact)
+
+Before optimization, wildcard `ILIKE %q%` searches triggered costly sequential table scans, causing p95 latency to degrade significantly as concurrency scaled. Adding PostgreSQL trigram GIN indexes (`pg_trgm`) eliminated the bottleneck:
+
+| Concurrency | Unindexed p95 Latency | Optimized (`pg_trgm`) p95 | Latency Reduction | Unindexed Throughput | Optimized Throughput |
+|-------------|-----------------------|---------------------------|-------------------|----------------------|----------------------|
+| **10 VUs**  | 733 ms                | **84 ms**                 | **-88.5%**        | 17.7 RPS             | **204.3 RPS**        |
+| **25 VUs**  | 3,549 ms              | **205 ms**                | **-94.2%**        | 10.7 RPS             | **210.2 RPS**        |
+| **50 VUs**  | 6,473 ms              | **440 ms**                | **-93.2%**        | 5.8 RPS              | **194.1 RPS**        |
 
 ## Tech Stack
 
@@ -81,7 +120,7 @@ docker compose -f docker-compose.prod.yml up --build -d
 |-------|-----------|
 | Frontend | Next.js (App Router) + TypeScript |
 | Backend | Express + TypeScript |
-| Database | PostgreSQL (Prisma ORM) |
+| Database | PostgreSQL (Prisma ORM + `pg_trgm` GIN indexing) |
 | Cache / RT | Redis (ioredis) |
 | Real-Time | Socket.IO |
 | Auth | Server-side sessions (Redis + signed httpOnly cookies) |

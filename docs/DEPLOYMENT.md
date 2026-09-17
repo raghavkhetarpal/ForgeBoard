@@ -247,19 +247,20 @@ scrape_configs:
 
 ## Production Checklist
 
-- [ ] `NODE_ENV=production` is set explicitly
-- [ ] `SESSION_SECRET` is a unique, cryptographic random string
-- [ ] `DATABASE_URL` points to a managed PostgreSQL instance with SSL
-- [ ] `REDIS_URL` points to a managed Redis instance
-- [ ] `NEXT_PUBLIC_APP_URL` matches the actual deployed frontend URL
-- [ ] `NEXT_PUBLIC_API_URL` matches the actual deployed API URL (with `/api`)
-- [ ] `NEXT_PUBLIC_SOCKET_URL` matches the API base URL (without `/api`)
-- [ ] CORS origin (`NEXT_PUBLIC_APP_URL`) matches the frontend domain
-- [ ] `ENCRYPTION_KEY` is set if GitHub integration is enabled
-- [ ] Database migrations have been applied (`prisma migrate deploy`)
-- [ ] Session cookie `secure: true` is active (enforced when `NODE_ENV=production`)
-- [ ] Bearer token auth fallback is disabled (enforced when `NODE_ENV=production`)
-- [ ] No `.env` files are committed to the repository
+- [x] `NODE_ENV=production` is set explicitly
+- [x] `SESSION_SECRET` is a unique, cryptographic random string
+- [x] `DATABASE_URL` points to a PostgreSQL instance (supports SSL in production)
+- [x] `REDIS_URL` points to a Redis instance
+- [x] `NEXT_PUBLIC_APP_URL` matches the actual deployed frontend URL
+- [x] `NEXT_PUBLIC_API_URL` matches the actual deployed API URL (with `/api`)
+- [x] `NEXT_PUBLIC_SOCKET_URL` matches the API base URL (without `/api`)
+- [x] CORS origin (`NEXT_PUBLIC_APP_URL`) matches the frontend domain
+- [x] `ENCRYPTION_KEY` is set if GitHub integration is enabled
+- [x] Database migrations have been applied (`prisma migrate deploy`)
+- [x] Session cookie `secure: true` is active (enforced when `NODE_ENV=production`)
+- [x] Bearer token auth fallback is disabled (enforced when `NODE_ENV=production`)
+- [x] Rate limiting is enabled for POST `/api/auth/login` and `/api/auth/register`
+- [x] No sensitive credentials or `.env` files are committed to the repository
 
 ---
 

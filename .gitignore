@@ -46,3 +46,7 @@ docker-data/
 test-results/
 playwright-report/
 blob-report/
+
+# Benchmark transient artifacts (meta contains generated session cookies)
+benchmark-meta.json
+benchmark-results.json
