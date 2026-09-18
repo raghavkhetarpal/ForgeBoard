@@ -27,11 +27,19 @@ export function initSocketServer(httpServer: HttpServer) {
   const subClient = pubClient.duplicate();
   subClient.on('error', () => {}); // Prevent unhandled error event on adapter subscriber
 
+  if (pubClient.status === 'wait') {
+    pubClient.connect().catch(() => {});
+  }
+  if (subClient.status === 'wait') {
+    subClient.connect().catch(() => {});
+  }
+
   io = new Server(httpServer, {
     cors: {
       origin: getAllowedOrigins(),
       credentials: true,
     },
+    transports: ['websocket', 'polling'],
     adapter: createAdapter(pubClient, subClient),
   });
 
@@ -100,7 +108,7 @@ export function initSocketServer(httpServer: HttpServer) {
     socket.join(`user:${socket.data.user.id}`);
 
     socket.on('join:project', async (payload, callback) => {
-      const { projectId } = payload || {};
+      const projectId = typeof payload === 'string' ? payload : payload?.projectId;
       if (!projectId) {
         return callback?.({ error: 'Project ID is required' });
       }
@@ -126,7 +134,7 @@ export function initSocketServer(httpServer: HttpServer) {
     });
 
     socket.on('leave:project', (payload, callback) => {
-      const { projectId } = payload || {};
+      const projectId = typeof payload === 'string' ? payload : payload?.projectId;
       if (projectId) {
         socket.leave(`project:${projectId}`);
         callback?.({ success: true });

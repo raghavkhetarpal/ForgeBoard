@@ -41,16 +41,13 @@ export function useProjectSocket({
     const currentCount = projectRoomRefCounts.get(projectId) || 0;
     projectRoomRefCounts.set(projectId, currentCount + 1);
 
-    // If first subscriber, join the room
-    if (currentCount === 0 && socket.connected) {
+    // Always attempt to join if socket is connected
+    if (socket.connected) {
       joinProjectRoom(socket, projectId, setIsConnected);
-    } else if (socket.connected) {
-      setIsConnected(true);
     }
 
     const handleConnect = () => {
-      setIsConnected(true);
-      // Re-join project room on reconnect
+      // Re-join project room on connect / reconnect
       joinProjectRoom(socket, projectId, setIsConnected);
       if (onReconnectRef.current) {
         onReconnectRef.current();

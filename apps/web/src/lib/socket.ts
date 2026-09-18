@@ -14,6 +14,7 @@ export function getSocket(): Socket {
     socketInstance = io(SOCKET_URL, {
       withCredentials: true,
       autoConnect: false, // Wait until we explicitly connect (e.g. after auth)
+      transports: ['websocket', 'polling'],
     });
   }
   return socketInstance;
